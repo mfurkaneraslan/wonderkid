@@ -38,11 +38,13 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
 
   final _nameController = TextEditingController();
   String? _nationality;
+  int? _shirtNumber;
   String? _position;
 
   bool get _canContinue =>
       _nameController.text.trim().length >= 2 &&
       _nationality != null &&
+      _shirtNumber != null &&
       _position != null;
 
   @override
@@ -60,7 +62,7 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
           behavior: SnackBarBehavior.floating,
           backgroundColor: const Color(0xFF183A29),
           content: Text(
-            '${_nameController.text.trim()} • $_position • $_nationality',
+            '${_nameController.text.trim()} • #$_shirtNumber • $_position • $_nationality',
           ),
         ),
       );
@@ -110,28 +112,66 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
                         .copyWith(counterText: ''),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    key: const Key('nationalityField'),
-                    initialValue: _nationality,
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF143323),
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                    hint: Text(
-                      'Uyruk',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.38),
-                      ),
-                    ),
-                    decoration: _inputDecoration(),
-                    items: _nationalities
-                        .map(
-                          (country) => DropdownMenuItem(
-                            value: country,
-                            child: Text(country),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          key: const Key('nationalityField'),
+                          initialValue: _nationality,
+                          isExpanded: true,
+                          menuMaxHeight: 360,
+                          dropdownColor: const Color(0xFF143323),
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                          hint: Text(
+                            'Uyruk',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.38),
+                            ),
                           ),
-                        )
-                        .toList(),
-                    onChanged: (value) => setState(() => _nationality = value),
+                          decoration: _inputDecoration(),
+                          items: _nationalities
+                              .map(
+                                (country) => DropdownMenuItem(
+                                  value: country,
+                                  child: Text(
+                                    country,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) =>
+                              setState(() => _nationality = value),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          key: const Key('shirtNumberField'),
+                          initialValue: _shirtNumber,
+                          isExpanded: true,
+                          menuMaxHeight: 360,
+                          dropdownColor: const Color(0xFF143323),
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                          hint: Text(
+                            'Forma No',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.38),
+                            ),
+                          ),
+                          decoration: _inputDecoration(),
+                          items: List.generate(
+                            99,
+                            (index) => DropdownMenuItem(
+                              value: index + 1,
+                              child: Text('${index + 1}'),
+                            ),
+                          ),
+                          onChanged: (value) =>
+                              setState(() => _shirtNumber = value),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 22),
                   Row(

@@ -31,10 +31,29 @@ void main() {
     expect(find.text('OYUNCUNU OLUŞTUR'), findsNothing);
     expect(find.text('Ad'), findsOneWidget);
     expect(find.text('Uyruk'), findsOneWidget);
+    expect(find.text('Forma No'), findsOneWidget);
     expect(find.text('OYUNCU ADI'), findsNothing);
     expect(find.byKey(const Key('playerNameField')), findsOneWidget);
     expect(find.byKey(const Key('nationalityField')), findsOneWidget);
+    expect(find.byKey(const Key('shirtNumberField')), findsOneWidget);
     expect(find.byType(CreateCareerScreen), findsOneWidget);
+  });
+
+  testWidgets('shirt number selector offers numbers from 1 to 99', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const WonderkidApp(home: CreateCareerScreen()));
+
+    await tester.tap(find.byKey(const Key('shirtNumberField')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('99'),
+      500,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('99'), findsOneWidget);
   });
 
   testWidgets('pitch contains and highlights every requested position', (
