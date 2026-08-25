@@ -56,6 +56,24 @@ void main() {
     expect(find.text('99'), findsOneWidget);
   });
 
+  testWidgets('third avatar is default and all six can be selected', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const WonderkidApp(home: CreateCareerScreen()));
+
+    expect(find.byKey(const Key('selectedAvatar_3')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('avatarSelector')));
+    await tester.pumpAndSettle();
+
+    for (var avatarId = 1; avatarId <= 6; avatarId++) {
+      expect(find.byKey(Key('avatarOption_$avatarId')), findsOneWidget);
+    }
+
+    await tester.tap(find.byKey(const Key('avatarOption_5')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('selectedAvatar_5')), findsOneWidget);
+  });
+
   testWidgets('pitch contains and highlights every requested position', (
     tester,
   ) async {

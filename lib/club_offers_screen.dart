@@ -177,22 +177,50 @@ class _PlayerSummary extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: const Color(0xFFC8FF4D),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Center(
-              child: Text(
-                '${profile.overall}',
-                style: const TextStyle(
-                  color: Color(0xFF092115),
-                  fontSize: 19,
-                  fontWeight: FontWeight.w900,
+          SizedBox(
+            width: 52,
+            height: 52,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: Image.asset(
+                      profile.avatarAssetPath,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
+                      cacheWidth: 156,
+                    ),
+                  ),
                 ),
-              ),
+                Positioned(
+                  right: -4,
+                  bottom: -3,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFC8FF4D),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFF10291C),
+                        width: 2,
+                      ),
+                    ),
+                    child: Text(
+                      '${profile.overall}',
+                      style: const TextStyle(
+                        color: Color(0xFF092115),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 11),

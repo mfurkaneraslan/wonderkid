@@ -45,6 +45,7 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
   String? _nationality;
   int? _shirtNumber;
   String? _position;
+  int _avatarId = 3;
   bool _isCreatingOffers = false;
 
   bool get _canContinue =>
@@ -69,6 +70,7 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
         nationality: _nationality!,
         shirtNumber: _shirtNumber!,
         position: _position!,
+        avatarId: _avatarId,
       );
       final offers = CareerOfferEngine.generate(
         dataset: dataset,
@@ -91,6 +93,23 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
       );
     } finally {
       if (mounted) setState(() => _isCreatingOffers = false);
+    }
+  }
+
+  Future<void> _selectAvatar() async {
+    FocusScope.of(context).unfocus();
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: const Color(0xFF10291C),
+      useSafeArea: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (context) => _AvatarPicker(selectedAvatarId: _avatarId),
+    );
+    if (selected != null && mounted) {
+      setState(() => _avatarId = selected);
     }
   }
 
@@ -126,16 +145,27 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TextField(
-                    key: const Key('playerNameField'),
-                    controller: _nameController,
-                    textCapitalization: TextCapitalization.words,
-                    textInputAction: TextInputAction.done,
-                    maxLength: 24,
-                    onChanged: (_) => setState(() {}),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                    decoration: _inputDecoration(hintText: 'Ad')
-                        .copyWith(counterText: ''),
+                  Row(
+                    children: [
+                      _SelectedAvatar(
+                        avatarId: _avatarId,
+                        onTap: _selectAvatar,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          key: const Key('playerNameField'),
+                          controller: _nameController,
+                          textCapitalization: TextCapitalization.words,
+                          textInputAction: TextInputAction.done,
+                          maxLength: 24,
+                          onChanged: (_) => setState(() {}),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          decoration: _inputDecoration(hintText: 'Ad')
+                              .copyWith(counterText: ''),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -317,6 +347,188 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: _accent, width: 1.4),
+      ),
+    );
+  }
+}
+
+class _SelectedAvatar extends StatelessWidget {
+  const _SelectedAvatar({required this.avatarId, required this.onTap});
+
+  final int avatarId;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Oyuncu görünümünü seç',
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(15),
+        child: InkWell(
+          key: const Key('avatarSelector'),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(15),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 70,
+                height: 94,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.32),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(
+                    color: const Color(0xFFC8FF4D).withValues(alpha: 0.8),
+                    width: 1.3,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(11),
+                  child: Image.asset(
+                    'assets/players/avatar_$avatarId.webp',
+                    key: Key('selectedAvatar_$avatarId'),
+                    fit: BoxFit.cover,
+                    alignment: Alignment.topCenter,
+                    cacheWidth: 210,
+                  ),
+                ),
+              ),
+              Positioned(
+                right: -5,
+                bottom: -5,
+                child: Container(
+                  width: 25,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFC8FF4D),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF071A12),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.edit_rounded,
+                    size: 13,
+                    color: Color(0xFF092115),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AvatarPicker extends StatelessWidget {
+  const _AvatarPicker({required this.selectedAvatarId});
+
+  final int selectedAvatarId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'GÖRÜNÜMÜNÜ SEÇ',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 14),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 6,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 0.84,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemBuilder: (context, index) {
+              final avatarId = index + 1;
+              final selected = avatarId == selectedAvatarId;
+              return Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(14),
+                child: InkWell(
+                  key: Key('avatarOption_$avatarId'),
+                  onTap: () => Navigator.of(context).pop(avatarId),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.26),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: selected
+                            ? const Color(0xFFC8FF4D)
+                            : Colors.white.withValues(alpha: 0.09),
+                        width: selected ? 2 : 1,
+                      ),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.asset(
+                            'assets/players/avatar_$avatarId.webp',
+                            fit: BoxFit.cover,
+                            alignment: Alignment.topCenter,
+                            cacheWidth: 260,
+                          ),
+                        ),
+                        if (selected)
+                          Positioned(
+                            right: 6,
+                            top: 6,
+                            child: Container(
+                              width: 23,
+                              height: 23,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFC8FF4D),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.check_rounded,
+                                size: 16,
+                                color: Color(0xFF092115),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

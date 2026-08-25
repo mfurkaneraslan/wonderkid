@@ -4,6 +4,7 @@ class CareerProfile {
     required this.nationality,
     required this.shirtNumber,
     required this.position,
+    required this.avatarId,
     required this.age,
     required this.overall,
     required this.pace,
@@ -20,6 +21,7 @@ class CareerProfile {
     required String nationality,
     required int shirtNumber,
     required String position,
+    int avatarId = 3,
   }) {
     final seed = _stableHash('$name|$nationality|$shirtNumber|$position');
     const overall = 67;
@@ -32,6 +34,7 @@ class CareerProfile {
       nationality: nationality,
       shirtNumber: shirtNumber,
       position: position,
+      avatarId: avatarId,
       age: 17,
       overall: overall,
       pace: attribute(0),
@@ -63,6 +66,7 @@ class CareerProfile {
   final String nationality;
   final int shirtNumber;
   final String position;
+  final int avatarId;
   final int age;
   final int overall;
   final int pace;
@@ -72,6 +76,8 @@ class CareerProfile {
   final int defending;
   final int physical;
   final int seed;
+
+  String get avatarAssetPath => 'assets/players/avatar_$avatarId.webp';
 
   static int _stableHash(String value) {
     var hash = 2166136261;

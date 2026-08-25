@@ -60,6 +60,7 @@ flutter:
   assets:
     - assets/data/fc26_career.json
     - assets/clubs/
+    - assets/players/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -16,6 +16,7 @@ void main() {
 
     expect(striker.age, 17);
     expect(striker.overall, 67);
+    expect(striker.avatarId, 3);
     expect(striker.shooting, greaterThan(striker.passing));
     expect(striker.position, 'ST');
   });
