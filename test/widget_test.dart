@@ -87,4 +87,36 @@ void main() {
 
     expect(find.text('ST'), findsNWidgets(2));
   });
+
+  testWidgets('completed player form opens three club offers', (tester) async {
+    await tester.pumpWidget(const WonderkidApp(home: CreateCareerScreen()));
+
+    await tester.enterText(
+      find.byKey(const Key('playerNameField')),
+      'Furkan Eraslan',
+    );
+    await tester.tap(find.byKey(const Key('nationalityField')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Türkiye').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('shirtNumberField')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1').last);
+    await tester.pumpAndSettle();
+    final striker = find.byKey(const Key('position_ST'));
+    await tester.ensureVisible(striker);
+    await tester.tap(striker);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('continueButton')));
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 500)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('KULÜP TEKLİFLERİ'), findsOneWidget);
+    expect(find.text('3 kulüp seni kadrosuna katmak istiyor.'), findsOneWidget);
+    expect(find.byKey(const Key('acceptOfferButton')), findsOneWidget);
+  });
 }

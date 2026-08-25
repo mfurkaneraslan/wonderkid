@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'career/career_profile.dart';
+import 'career/offer_generator.dart';
+import 'club_offers_screen.dart';
+import 'data/football_repository.dart';
+
 class CreateCareerScreen extends StatefulWidget {
   const CreateCareerScreen({super.key});
 
@@ -40,6 +45,7 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
   String? _nationality;
   int? _shirtNumber;
   String? _position;
+  bool _isCreatingOffers = false;
 
   bool get _canContinue =>
       _nameController.text.trim().length >= 2 &&
@@ -53,19 +59,39 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
     super.dispose();
   }
 
-  void _continue() {
+  Future<void> _continue() async {
     FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
+    setState(() => _isCreatingOffers = true);
+    try {
+      final dataset = await FootballRepository.load();
+      final profile = CareerProfile.create(
+        name: _nameController.text.trim(),
+        nationality: _nationality!,
+        shirtNumber: _shirtNumber!,
+        position: _position!,
+      );
+      final offers = CareerOfferEngine.generate(
+        dataset: dataset,
+        profile: profile,
+      );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ClubOffersScreen(profile: profile, offers: offers),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
           backgroundColor: const Color(0xFF183A29),
-          content: Text(
-            '${_nameController.text.trim()} • #$_shirtNumber • $_position • $_nationality',
-          ),
+          content: const Text('Kulüp verileri yüklenemedi. Tekrar dene.'),
         ),
       );
+    } finally {
+      if (mounted) setState(() => _isCreatingOffers = false);
+    }
   }
 
   @override
@@ -233,7 +259,9 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
               height: 56,
               child: FilledButton(
                 key: const Key('continueButton'),
-                onPressed: _canContinue ? _continue : null,
+                onPressed: _canContinue && !_isCreatingOffers
+                    ? _continue
+                    : null,
                 style: FilledButton.styleFrom(
                   backgroundColor: _accent,
                   disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
@@ -243,21 +271,30 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'DEVAM ET',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.1,
+                child: _isCreatingOffers
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          color: Color(0xFF0A2116),
+                        ),
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'DEVAM ET',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward_rounded, size: 20),
+                        ],
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 20),
-                  ],
-                ),
               ),
             ),
           ),
