@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'create_career_screen.dart';
+
 void main() {
   runApp(const WonderkidApp());
 }
@@ -120,8 +122,11 @@ class HomeScreen extends StatelessWidget {
                         label: 'YENİ KARİYER',
                         icon: Icons.add_rounded,
                         isPrimary: true,
-                        onPressed: () =>
-                            _showComingSoon(context, 'Oyuncu oluşturma'),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const CreateCareerScreen(),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 14),
                       _MenuButton(
