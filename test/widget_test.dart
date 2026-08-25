@@ -117,6 +117,14 @@ void main() {
 
     expect(find.text('KULÜP TEKLİFLERİ'), findsOneWidget);
     expect(find.text('3 kulüp seni kadrosuna katmak istiyor.'), findsOneWidget);
+    expect(find.textContaining('forma rekabetini'), findsNothing);
+    expect(find.text('1 yıl'), findsNWidgets(3));
+    expect(find.textContaining('/ hafta'), findsNWidgets(3));
+    expect(find.byKey(const Key('backFromOffersButton')), findsOneWidget);
     expect(find.byKey(const Key('acceptOfferButton')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('backFromOffersButton')));
+    await tester.pumpAndSettle();
+    expect(find.byType(CreateCareerScreen), findsOneWidget);
   });
 }

@@ -2,6 +2,18 @@ import 'package:flutter/material.dart';
 
 import 'career/career_profile.dart';
 import 'career/offer_generator.dart';
+import 'data/football_repository.dart';
+
+String _formatEuro(int amount) {
+  var remaining = amount.toString();
+  final groups = <String>[];
+  while (remaining.length > 3) {
+    groups.insert(0, remaining.substring(remaining.length - 3));
+    remaining = remaining.substring(0, remaining.length - 3);
+  }
+  groups.insert(0, remaining);
+  return '€${groups.join('.')}';
+}
 
 class ClubOffersScreen extends StatefulWidget {
   const ClubOffersScreen({
@@ -61,6 +73,12 @@ class _ClubOffersScreenState extends State<ClubOffersScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          key: const Key('backFromOffersButton'),
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Geri',
+        ),
         title: const Text(
           'KULÜP TEKLİFLERİ',
           style: TextStyle(
@@ -75,38 +93,30 @@ class _ClubOffersScreenState extends State<ClubOffersScreen> {
         top: false,
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _PlayerSummary(profile: widget.profile),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 12),
                   const Text(
                     '3 kulüp seni kadrosuna katmak istiyor.',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Teklifi seçmeden önce forma rekabetini incele.',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.48),
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
                   for (final offer in widget.offers) ...[
                     _OfferCard(
                       offer: offer,
                       selected: _selectedOffer == offer,
                       onTap: () => setState(() => _selectedOffer = offer),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                   ],
                 ],
               ),
@@ -115,14 +125,14 @@ class _ClubOffersScreenState extends State<ClubOffersScreen> {
         ),
       ),
       bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+        minimum: const EdgeInsets.fromLTRB(16, 6, 16, 10),
         child: Center(
           heightFactor: 1,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
             child: SizedBox(
               width: double.infinity,
-              height: 56,
+              height: 52,
               child: FilledButton(
                 key: const Key('acceptOfferButton'),
                 onPressed: _selectedOffer == null ? null : _acceptOffer,
@@ -159,7 +169,7 @@ class _PlayerSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.055),
         borderRadius: BorderRadius.circular(18),
@@ -168,24 +178,24 @@ class _PlayerSummary extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 54,
-            height: 54,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
               color: const Color(0xFFC8FF4D),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(13),
             ),
             child: Center(
               child: Text(
                 '${profile.overall}',
                 style: const TextStyle(
                   color: Color(0xFF092115),
-                  fontSize: 22,
+                  fontSize: 19,
                   fontWeight: FontWeight.w900,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,7 +205,7 @@ class _PlayerSummary extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -240,7 +250,7 @@ class _OfferCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(11),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
@@ -255,8 +265,8 @@ class _OfferCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  _ClubMonogram(name: offer.club.name),
-                  const SizedBox(width: 12),
+                  _ClubLogo(club: offer.club),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,66 +276,64 @@ class _OfferCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 2),
                         Text(
                           '${offer.league.country} • ${offer.league.name}',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.45),
-                            fontSize: 12,
+                            fontSize: 11,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  if (selected)
-                    const Icon(
-                      Icons.check_circle_rounded,
-                      color: Color(0xFFC8FF4D),
-                    ),
+                  _TeamRating(rating: offer.club.rating, selected: selected),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 9),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 6,
+                runSpacing: 6,
                 children: [
-                  _InfoChip(label: 'Takım ${offer.club.rating}'),
                   _InfoChip(label: offer.role),
                   _InfoChip(label: '${offer.contractYears} yıl'),
+                  _InfoChip(
+                    label: '${_formatEuro(offer.weeklySalaryEuro)} / hafta',
+                  ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 9),
               Text(
                 'POZİSYON RAKİPLERİ',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.38),
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.1,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 5),
               for (final competitor in offer.competitors)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 5),
+                  padding: const EdgeInsets.only(bottom: 2),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
                           competitor.shortName,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12),
+                          style: const TextStyle(fontSize: 11),
                         ),
                       ),
                       Text(
                         '${competitor.overall}',
                         style: const TextStyle(
                           color: Color(0xFFC8FF4D),
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -340,14 +348,14 @@ class _OfferCard extends StatelessWidget {
   }
 }
 
-class _ClubMonogram extends StatelessWidget {
-  const _ClubMonogram({required this.name});
+class _ClubLogo extends StatelessWidget {
+  const _ClubLogo({required this.club});
 
-  final String name;
+  final CareerClub club;
 
   @override
   Widget build(BuildContext context) {
-    final initials = name
+    final initials = club.name
         .split(' ')
         .where((part) => part.isNotEmpty)
         .take(2)
@@ -355,17 +363,67 @@ class _ClubMonogram extends StatelessWidget {
         .join()
         .toUpperCase();
     return Container(
-      width: 46,
-      height: 46,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Center(
-        child: Text(
-          initials,
-          style: const TextStyle(fontWeight: FontWeight.w900),
+      padding: const EdgeInsets.all(5),
+      child: Image.asset(
+        'assets/clubs/${club.id}.png',
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => Center(
+          child: Text(
+            initials,
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _TeamRating extends StatelessWidget {
+  const _TeamRating({required this.rating, required this.selected});
+
+  final int rating;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 42,
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: selected
+            ? const Color(0xFFC8FF4D)
+            : Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Text(
+            '$rating',
+            style: TextStyle(
+              color: selected ? const Color(0xFF092115) : Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'TAKIM',
+            style: TextStyle(
+              color: selected
+                  ? const Color(0xFF092115).withValues(alpha: 0.7)
+                  : Colors.white.withValues(alpha: 0.4),
+              fontSize: 7,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -379,7 +437,7 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
@@ -388,7 +446,7 @@ class _InfoChip extends StatelessWidget {
         label,
         style: TextStyle(
           color: Colors.white.withValues(alpha: 0.72),
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -474,7 +532,7 @@ class ContractSignedScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 5),
                         Text(
-                          '${offer.league.name} • ${offer.role}',
+                          '${offer.league.name} • ${offer.contractYears} yıl • ${_formatEuro(offer.weeklySalaryEuro)} / hafta',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.5),
                             fontSize: 12,

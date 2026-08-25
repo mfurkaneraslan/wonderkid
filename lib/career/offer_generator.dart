@@ -10,6 +10,7 @@ class ClubOffer {
     required this.competitors,
     required this.role,
     required this.contractYears,
+    required this.weeklySalaryEuro,
   });
 
   final CareerClub club;
@@ -17,6 +18,7 @@ class ClubOffer {
   final List<CareerPlayer> competitors;
   final String role;
   final int contractYears;
+  final int weeklySalaryEuro;
 
   int get strongestCompetitorOverall => competitors.first.overall;
 }
@@ -103,12 +105,20 @@ class CareerOfferEngine {
       <= 10 => 'Rotasyon',
       _ => 'Gelişim oyuncusu',
     };
+    final rawSalary =
+        2000 +
+        (candidate.club.rating - 65) * 550 +
+        (profile.overall - 60) * 750 +
+        (candidate.club.id % 5) * 250;
+    final weeklySalaryEuro =
+        (rawSalary.clamp(3000, 25000).toInt() / 250).round() * 250;
     return ClubOffer(
       club: candidate.club,
       league: candidate.league,
       competitors: candidate.competitors,
       role: role,
-      contractYears: 3,
+      contractYears: 1,
+      weeklySalaryEuro: weeklySalaryEuro,
     );
   }
 

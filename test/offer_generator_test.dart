@@ -15,7 +15,7 @@ void main() {
     );
 
     expect(striker.age, 17);
-    expect(striker.overall, inInclusiveRange(60, 65));
+    expect(striker.overall, 67);
     expect(striker.shooting, greaterThan(striker.passing));
     expect(striker.position, 'ST');
   });
@@ -43,6 +43,8 @@ void main() {
     expect(offers.first.league.name, 'Süper Lig');
     expect(offers.every((offer) => offer.club.rating <= 78), isTrue);
     expect(offers.every((offer) => offer.competitors.isNotEmpty), isTrue);
+    expect(offers.every((offer) => offer.contractYears == 1), isTrue);
+    expect(offers.every((offer) => offer.weeklySalaryEuro >= 3000), isTrue);
     expect(
       repeated.map((offer) => offer.club.id),
       offers.map((offer) => offer.club.id),

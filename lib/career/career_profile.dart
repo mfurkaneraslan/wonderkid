@@ -22,7 +22,7 @@ class CareerProfile {
     required String position,
   }) {
     final seed = _stableHash('$name|$nationality|$shirtNumber|$position');
-    final overall = 60 + seed % 6;
+    const overall = 67;
     final modifiers = _attributeModifiers[position] ?? const [0, 0, 0, 0, 0, 0];
 
     int attribute(int index) => (overall + modifiers[index]).clamp(20, 85);
