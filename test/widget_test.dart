@@ -28,7 +28,10 @@ void main() {
     await tester.tap(find.text('YENİ KARİYER'));
     await tester.pumpAndSettle();
 
-    expect(find.text('OYUNCUNU OLUŞTUR'), findsOneWidget);
+    expect(find.text('OYUNCUNU OLUŞTUR'), findsNothing);
+    expect(find.text('Ad'), findsOneWidget);
+    expect(find.text('Uyruk'), findsOneWidget);
+    expect(find.text('OYUNCU ADI'), findsNothing);
     expect(find.byKey(const Key('playerNameField')), findsOneWidget);
     expect(find.byKey(const Key('nationalityField')), findsOneWidget);
     expect(find.byType(CreateCareerScreen), findsOneWidget);

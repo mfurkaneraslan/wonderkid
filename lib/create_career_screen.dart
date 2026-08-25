@@ -92,32 +92,12 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
         top: false,
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(22, 12, 22, 30),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 500),
+              constraints: const BoxConstraints(maxWidth: 440),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'OYUNCUNU OLUŞTUR',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    '17 yaşındaki kariyerinin ilk adımını at.',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.52),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  const _SectionLabel('OYUNCU ADI'),
-                  const SizedBox(height: 10),
                   TextField(
                     key: const Key('playerNameField'),
                     controller: _nameController,
@@ -126,14 +106,10 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
                     maxLength: 24,
                     onChanged: (_) => setState(() {}),
                     style: const TextStyle(fontWeight: FontWeight.w700),
-                    decoration: _inputDecoration(
-                      hintText: 'Adını ve soyadını yaz',
-                      prefixIcon: Icons.person_outline_rounded,
-                    ).copyWith(counterText: ''),
+                    decoration: _inputDecoration(hintText: 'Ad')
+                        .copyWith(counterText: ''),
                   ),
-                  const SizedBox(height: 20),
-                  const _SectionLabel('UYRUK'),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     key: const Key('nationalityField'),
                     initialValue: _nationality,
@@ -141,14 +117,12 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
                     dropdownColor: const Color(0xFF143323),
                     icon: const Icon(Icons.keyboard_arrow_down_rounded),
                     hint: Text(
-                      'Uyruğunu seç',
+                      'Uyruk',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.38),
                       ),
                     ),
-                    decoration: _inputDecoration(
-                      prefixIcon: Icons.public_rounded,
-                    ),
+                    decoration: _inputDecoration(),
                     items: _nationalities
                         .map(
                           (country) => DropdownMenuItem(
@@ -159,71 +133,91 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
                         .toList(),
                     onChanged: (value) => setState(() => _nationality = value),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 22),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const _SectionLabel('POZİSYON'),
+                      const Text(
+                        'Pozisyonunu seç',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 180),
-                        child: Text(
-                          _position ?? 'Bir pozisyon seç',
-                          key: ValueKey(_position),
-                          style: TextStyle(
-                            color: _position == null
-                                ? Colors.white.withValues(alpha: 0.38)
-                                : _accent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.7,
-                          ),
-                        ),
+                        child: _position == null
+                            ? const SizedBox.shrink()
+                            : Container(
+                                key: ValueKey(_position),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 11,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _accent.withValues(alpha: 0.13),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  _position!,
+                                  style: const TextStyle(
+                                    color: _accent,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   _PositionPitch(
                     selectedPosition: _position,
                     onSelected: (value) => setState(() => _position = value),
                   ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 58,
-                    child: FilledButton(
-                      key: const Key('continueButton'),
-                      onPressed: _canContinue ? _continue : null,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _accent,
-                        disabledBackgroundColor: Colors.white.withValues(
-                          alpha: 0.08,
-                        ),
-                        foregroundColor: const Color(0xFF0A2116),
-                        disabledForegroundColor: Colors.white.withValues(
-                          alpha: 0.25,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'DEVAM ET',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.1,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(Icons.arrow_forward_rounded, size: 20),
-                        ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: FilledButton(
+                key: const Key('continueButton'),
+                onPressed: _canContinue ? _continue : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _accent,
+                  disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
+                  foregroundColor: const Color(0xFF0A2116),
+                  disabledForegroundColor: Colors.white.withValues(alpha: 0.25),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'DEVAM ET',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.1,
                       ),
                     ),
-                  ),
-                ],
+                    SizedBox(width: 8),
+                    Icon(Icons.arrow_forward_rounded, size: 20),
+                  ],
+                ),
               ),
             ),
           ),
@@ -232,17 +226,13 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
     );
   }
 
-  InputDecoration _inputDecoration({
-    String? hintText,
-    required IconData prefixIcon,
-  }) {
+  InputDecoration _inputDecoration({String? hintText}) {
     return InputDecoration(
       hintText: hintText,
       hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.38)),
-      prefixIcon: Icon(prefixIcon, color: Colors.white.withValues(alpha: 0.48)),
       filled: true,
       fillColor: Colors.white.withValues(alpha: 0.055),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 17),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.09)),
@@ -250,25 +240,6 @@ class _CreateCareerScreenState extends State<CreateCareerScreen> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: _accent, width: 1.4),
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.68),
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 1.5,
       ),
     );
   }
@@ -301,7 +272,7 @@ class _PositionPitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
-      aspectRatio: 0.72,
+      aspectRatio: 0.78,
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
