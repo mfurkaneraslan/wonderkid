@@ -51,4 +51,25 @@ void main() {
       offers.map((offer) => offer.club.id),
     );
   });
+
+  test('position changes the strongest starting attributes', () {
+    CareerProfile profile(String position) => CareerProfile.create(
+      name: 'Test Player',
+      nationality: 'Türkiye',
+      shirtNumber: 10,
+      position: position,
+    );
+
+    final winger = profile('LW');
+    final striker = profile('ST');
+    final midfielder = profile('CM');
+    final centreBack = profile('CB');
+
+    expect(winger.pace, greaterThan(winger.shooting));
+    expect(winger.dribbling, greaterThan(winger.defending));
+    expect(striker.shooting, greaterThan(striker.passing));
+    expect(midfielder.passing, greaterThan(midfielder.defending));
+    expect(centreBack.defending, greaterThan(centreBack.dribbling));
+    expect(centreBack.physical, greaterThan(centreBack.pace));
+  });
 }

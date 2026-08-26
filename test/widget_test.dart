@@ -106,7 +106,9 @@ void main() {
     expect(find.text('ST'), findsNWidgets(2));
   });
 
-  testWidgets('completed player form opens three club offers', (tester) async {
+  testWidgets('completed player is confirmed before club offers', (
+    tester,
+  ) async {
     await tester.pumpWidget(const WonderkidApp(home: CreateCareerScreen()));
 
     await tester.enterText(
@@ -127,6 +129,20 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('continueButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('OYUNCUNU ONAYLA'), findsOneWidget);
+    expect(find.byKey(const Key('fcPlayerCard')), findsOneWidget);
+    expect(find.byKey(const Key('cardOverall')), findsOneWidget);
+    expect(find.byKey(const Key('cardPosition')), findsOneWidget);
+    expect(find.text('PAC'), findsOneWidget);
+    expect(find.text('SHO'), findsOneWidget);
+    expect(find.text('PAS'), findsOneWidget);
+    expect(find.text('DRI'), findsOneWidget);
+    expect(find.text('DEF'), findsOneWidget);
+    expect(find.text('PHY'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('confirmPlayerButton')));
     await tester.pump();
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 500)),
