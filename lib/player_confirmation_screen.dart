@@ -104,7 +104,7 @@ class _PlayerConfirmationScreenState extends State<PlayerConfirmationScreen> {
                   ),
                   const SizedBox(height: 14),
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 310),
+                    constraints: const BoxConstraints(maxWidth: 330),
                     child: _FcPlayerCard(profile: widget.profile),
                   ),
                 ],
@@ -166,107 +166,121 @@ class _FcPlayerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const ink = Color(0xFF2B1803);
+    const designWidth = 310.0;
+    const designHeight = designWidth * 1460 / 1086;
     return AspectRatio(
       key: const Key('fcPlayerCard'),
       aspectRatio: 1086 / 1460,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          ColorFiltered(
-            colorFilter: const ColorFilter.mode(
-              Color(0xFF071A12),
-              BlendMode.lighten,
-            ),
-            child: Image.asset(
-              profile.avatarAssetPath,
-              fit: BoxFit.contain,
-              cacheWidth: 620,
-            ),
-          ),
-          Positioned(
-            left: 47,
-            top: 46,
-            child: Column(
-              children: [
-                Text(
-                  '${profile.overall}',
-                  key: const Key('cardOverall'),
-                  style: const TextStyle(
-                    color: ink,
-                    fontSize: 40,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
-                  ),
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: SizedBox(
+          width: designWidth,
+          height: designHeight,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ColorFiltered(
+                colorFilter: const ColorFilter.mode(
+                  Color(0xFF071A12),
+                  BlendMode.lighten,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  profile.position,
-                  key: const Key('cardPosition'),
-                  style: const TextStyle(
-                    color: ink,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1,
-                  ),
+                child: Image.asset(
+                  profile.avatarAssetPath,
+                  fit: BoxFit.contain,
+                  cacheWidth: 620,
                 ),
-              ],
-            ),
-          ),
-          Positioned(
-            left: 48,
-            right: 48,
-            top: 258,
-            bottom: 58,
-            child: Column(
-              children: [
-                Text(
-                  profile.name.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: ink,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
+              ),
+              Positioned(
+                left: 47,
+                top: 46,
+                child: Column(
+                  children: [
+                    Text(
+                      '${profile.overall}',
+                      key: const Key('cardOverall'),
+                      style: const TextStyle(
+                        color: ink,
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      profile.position,
+                      key: const Key('cardPosition'),
+                      style: const TextStyle(
+                        color: ink,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Container(height: 1, color: ink.withValues(alpha: 0.28)),
-                const SizedBox(height: 7),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _StatColumn(
-                          stats: [
-                            _CardStat('PAC', profile.pace),
-                            _CardStat('SHO', profile.shooting),
-                            _CardStat('PAS', profile.passing),
-                          ],
+              ),
+              Positioned(
+                left: 48,
+                right: 48,
+                top: 258,
+                bottom: 58,
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 19,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          profile.name.toUpperCase(),
+                          maxLines: 1,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: ink,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.6,
+                          ),
                         ),
                       ),
-                      Container(
-                        width: 1,
-                        margin: const EdgeInsets.symmetric(horizontal: 12),
-                        color: ink.withValues(alpha: 0.22),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(height: 1, color: ink.withValues(alpha: 0.28)),
+                    const SizedBox(height: 7),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _StatColumn(
+                              stats: [
+                                _CardStat('PAC', profile.pace),
+                                _CardStat('SHO', profile.shooting),
+                                _CardStat('PAS', profile.passing),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            margin: const EdgeInsets.symmetric(horizontal: 12),
+                            color: ink.withValues(alpha: 0.22),
+                          ),
+                          Expanded(
+                            child: _StatColumn(
+                              stats: [
+                                _CardStat('DRI', profile.dribbling),
+                                _CardStat('DEF', profile.defending),
+                                _CardStat('PHY', profile.physical),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      Expanded(
-                        child: _StatColumn(
-                          stats: [
-                            _CardStat('DRI', profile.dribbling),
-                            _CardStat('DEF', profile.defending),
-                            _CardStat('PHY', profile.physical),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
