@@ -200,18 +200,18 @@ class _FcPlayerCard extends StatelessWidget {
                       key: const Key('cardOverall'),
                       style: const TextStyle(
                         color: ink,
-                        fontSize: 36,
+                        fontSize: 30,
                         fontWeight: FontWeight.w900,
                         height: 1,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       profile.position,
                       key: const Key('cardPosition'),
                       style: const TextStyle(
                         color: ink,
-                        fontSize: 17,
+                        fontSize: 13,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1,
                       ),
@@ -222,12 +222,12 @@ class _FcPlayerCard extends StatelessWidget {
               Positioned(
                 left: 48,
                 right: 48,
-                top: 258,
+                top: 261,
                 bottom: 58,
                 child: Column(
                   children: [
                     SizedBox(
-                      height: 19,
+                      height: 16,
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
@@ -236,16 +236,16 @@ class _FcPlayerCard extends StatelessWidget {
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: ink,
-                            fontSize: 16,
+                            fontSize: 13,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.6,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Container(height: 1, color: ink.withValues(alpha: 0.28)),
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 5),
                     Expanded(
                       child: Row(
                         children: [
