@@ -195,8 +195,8 @@ class _FcPlayerCard extends StatelessWidget {
           Positioned(
             left: 48,
             right: 48,
-            top: 274,
-            bottom: 38,
+            top: 265,
+            bottom: 64,
             child: Column(
               children: [
                 Text(
@@ -260,8 +260,17 @@ class _StatColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [for (final stat in stats) _StatLine(stat: stat)],
+      children: [
+        for (final stat in stats)
+          Expanded(
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: _StatLine(stat: stat),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
