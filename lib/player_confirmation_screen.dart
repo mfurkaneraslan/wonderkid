@@ -55,21 +55,35 @@ class _PlayerConfirmationScreenState extends State<PlayerConfirmationScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          key: const Key('backFromConfirmationButton'),
-          tooltip: 'Geri',
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
-        title: const Text(
-          'OYUNCUNU ONAYLA',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.4,
+        automaticallyImplyLeading: false,
+        titleSpacing: 0,
+        title: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    key: const Key('backFromConfirmationButton'),
+                    tooltip: 'Geri',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                  ),
+                ),
+                const Text(
+                  'OYUNCUNU ONAYLA',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        centerTitle: true,
       ),
       body: SafeArea(
         top: false,
@@ -158,14 +172,20 @@ class _FcPlayerCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            profile.avatarAssetPath,
-            fit: BoxFit.contain,
-            cacheWidth: 620,
+          ColorFiltered(
+            colorFilter: const ColorFilter.mode(
+              Color(0xFF071A12),
+              BlendMode.lighten,
+            ),
+            child: Image.asset(
+              profile.avatarAssetPath,
+              fit: BoxFit.contain,
+              cacheWidth: 620,
+            ),
           ),
           Positioned(
-            left: 48,
-            top: 48,
+            left: 47,
+            top: 46,
             child: Column(
               children: [
                 Text(
@@ -173,7 +193,7 @@ class _FcPlayerCard extends StatelessWidget {
                   key: const Key('cardOverall'),
                   style: const TextStyle(
                     color: ink,
-                    fontSize: 34,
+                    fontSize: 40,
                     fontWeight: FontWeight.w900,
                     height: 1,
                   ),
@@ -184,7 +204,7 @@ class _FcPlayerCard extends StatelessWidget {
                   key: const Key('cardPosition'),
                   style: const TextStyle(
                     color: ink,
-                    fontSize: 15,
+                    fontSize: 17,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 1,
                   ),
@@ -195,8 +215,8 @@ class _FcPlayerCard extends StatelessWidget {
           Positioned(
             left: 48,
             right: 48,
-            top: 265,
-            bottom: 64,
+            top: 258,
+            bottom: 58,
             child: Column(
               children: [
                 Text(
@@ -206,7 +226,7 @@ class _FcPlayerCard extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: ink,
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.8,
                   ),
@@ -289,7 +309,7 @@ class _StatLine extends StatelessWidget {
           '${stat.value}',
           style: const TextStyle(
             color: Color(0xFF2B1803),
-            fontSize: 15,
+            fontSize: 17,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -298,7 +318,7 @@ class _StatLine extends StatelessWidget {
           stat.label,
           style: TextStyle(
             color: const Color(0xFF2B1803).withValues(alpha: 0.72),
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w800,
           ),
         ),
