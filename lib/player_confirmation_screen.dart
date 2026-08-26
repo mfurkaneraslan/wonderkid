@@ -192,7 +192,7 @@ class _FcPlayerCard extends StatelessWidget {
               ),
               Positioned(
                 left: 47,
-                top: 54,
+                top: 60,
                 child: Column(
                   children: [
                     Text(
@@ -203,6 +203,10 @@ class _FcPlayerCard extends StatelessWidget {
                         fontSize: 30,
                         fontWeight: FontWeight.w900,
                         height: 1,
+                        shadows: [
+                          Shadow(color: ink, offset: Offset(0.35, 0)),
+                          Shadow(color: ink, offset: Offset(-0.35, 0)),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -214,6 +218,10 @@ class _FcPlayerCard extends StatelessWidget {
                         fontSize: 13,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1,
+                        shadows: [
+                          Shadow(color: ink, offset: Offset(0.3, 0)),
+                          Shadow(color: ink, offset: Offset(-0.3, 0)),
+                        ],
                       ),
                     ),
                   ],
@@ -239,6 +247,10 @@ class _FcPlayerCard extends StatelessWidget {
                             fontSize: 13,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.6,
+                            shadows: [
+                              Shadow(color: ink, offset: Offset(0.3, 0)),
+                              Shadow(color: ink, offset: Offset(-0.3, 0)),
+                            ],
                           ),
                         ),
                       ),
