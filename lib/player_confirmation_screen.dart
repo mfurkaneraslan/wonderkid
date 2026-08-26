@@ -192,7 +192,7 @@ class _FcPlayerCard extends StatelessWidget {
               ),
               Positioned(
                 left: 47,
-                top: 46,
+                top: 54,
                 child: Column(
                   children: [
                     Text(
@@ -222,7 +222,7 @@ class _FcPlayerCard extends StatelessWidget {
               Positioned(
                 left: 48,
                 right: 48,
-                top: 261,
+                top: 267,
                 bottom: 58,
                 child: Column(
                   children: [
