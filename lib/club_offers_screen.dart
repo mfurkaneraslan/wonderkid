@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'career/career_profile.dart';
 import 'career/offer_generator.dart';
+import 'career_dashboard_screen.dart';
 import 'data/football_repository.dart';
 
 String _formatEuro(int amount) {
@@ -58,11 +59,12 @@ class _ClubOffersScreenState extends State<ClubOffersScreen> {
       ),
     );
     if (accepted != true || !mounted) return;
-    await Navigator.of(context).push(
+    await Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(
         builder: (_) =>
-            ContractSignedScreen(profile: widget.profile, offer: offer),
+            CareerDashboardScreen(profile: widget.profile, offer: offer),
       ),
+      (_) => false,
     );
   }
 
@@ -476,111 +478,6 @@ class _InfoChip extends StatelessWidget {
           color: Colors.white.withValues(alpha: 0.72),
           fontSize: 10,
           fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class ContractSignedScreen extends StatelessWidget {
-  const ContractSignedScreen({
-    super.key,
-    required this.profile,
-    required this.offer,
-  });
-
-  final CareerProfile profile;
-  final ClubOffer offer;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF071A12),
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 86,
-                    height: 86,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFC8FF4D),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.done_rounded,
-                      color: Color(0xFF092115),
-                      size: 48,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  const Text(
-                    'SÖZLEŞME İMZALANDI',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    '${profile.name}, ${offer.club.name} ile profesyonel kariyerine başlıyor.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.52),
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  _PlayerSummary(profile: profile),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          offer.club.name,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          '${offer.league.name} • ${offer.contractYears} yıl • ${_formatEuro(offer.weeklySalaryEuro)} / hafta',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  Text(
-                    'Kariyer merkezi sıradaki adımda eklenecek.',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.35),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ),
       ),
     );

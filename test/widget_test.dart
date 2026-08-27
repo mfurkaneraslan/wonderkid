@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:wonderkid/create_career_screen.dart';
+import 'package:wonderkid/career/career_profile.dart';
+import 'package:wonderkid/career/offer_generator.dart';
+import 'package:wonderkid/career_dashboard_screen.dart';
+import 'package:wonderkid/data/football_repository.dart';
 import 'package:wonderkid/main.dart';
 
 void main() {
@@ -160,5 +164,57 @@ void main() {
     await tester.tap(find.byKey(const Key('backFromOffersButton')));
     await tester.pumpAndSettle();
     expect(find.byType(CreateCareerScreen), findsOneWidget);
+  });
+
+  testWidgets('career dashboard switches between all four tabs', (
+    tester,
+  ) async {
+    final profile = CareerProfile.create(
+      name: 'Furkan Eraslan',
+      nationality: 'Türkiye',
+      shirtNumber: 7,
+      position: 'ST',
+    );
+    const club = CareerClub(
+      id: 1,
+      name: 'Wonderkid FC',
+      rating: 72,
+      playerCount: 25,
+    );
+    const league = CareerLeague(
+      id: 68,
+      name: 'Süper Lig',
+      country: 'Türkiye',
+      clubs: [club],
+    );
+    const offer = ClubOffer(
+      club: club,
+      league: league,
+      competitors: [],
+      role: 'Rotasyon',
+      contractYears: 1,
+      weeklySalaryEuro: 9000,
+    );
+
+    await tester.pumpWidget(
+      WonderkidApp(
+        home: CareerDashboardScreen(profile: profile, offer: offer),
+      ),
+    );
+
+    expect(find.byKey(const Key('careerDashboard')), findsOneWidget);
+    expect(find.text('KARİYER MERKEZİ'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('trainingTab')));
+    await tester.pumpAndSettle();
+    expect(find.text('BU HAFTANIN PROGRAMI'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('teamTab')));
+    await tester.pumpAndSettle();
+    expect(find.text('FORMA REKABETİ'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('shopTab')));
+    await tester.pumpAndSettle();
+    expect(find.text('KATEGORİLER'), findsOneWidget);
   });
 }
