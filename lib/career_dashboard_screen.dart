@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'career/career_profile.dart';
+import 'career/fixture_generator.dart';
 import 'career/offer_generator.dart';
 import 'data/football_repository.dart';
 
@@ -21,6 +22,34 @@ class CareerDashboardScreen extends StatefulWidget {
 class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
   static const _accent = Color(0xFFC8FF4D);
   int _selectedIndex = 0;
+  late final CareerSeasonFixture _fixture;
+
+  @override
+  void initState() {
+    super.initState();
+    _fixture = CareerFixtureGenerator.generate(
+      league: widget.offer.league,
+      club: widget.offer.club,
+      seed: widget.profile.seed,
+    );
+  }
+
+  Future<void> _showFixture() {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0A2116),
+      barrierColor: Colors.black.withValues(alpha: 0.72),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _FixtureSheet(
+        fixture: _fixture,
+        club: widget.offer.club,
+        league: widget.offer.league,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +57,9 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       _OverviewTab(
         profile: widget.profile,
         offer: widget.offer,
+        fixture: _fixture,
         onOpenTraining: () => setState(() => _selectedIndex = 1),
+        onOpenFixture: _showFixture,
       ),
       _TrainingTab(profile: widget.profile),
       _TeamTab(profile: widget.profile, offer: widget.offer),
@@ -119,12 +150,16 @@ class _OverviewTab extends StatelessWidget {
   const _OverviewTab({
     required this.profile,
     required this.offer,
+    required this.fixture,
     required this.onOpenTraining,
+    required this.onOpenFixture,
   });
 
   final CareerProfile profile;
   final ClubOffer offer;
+  final CareerSeasonFixture fixture;
   final VoidCallback onOpenTraining;
+  final VoidCallback onOpenFixture;
 
   @override
   Widget build(BuildContext context) {
@@ -132,6 +167,8 @@ class _OverviewTab extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
+          _SeasonDateStrip(fixture: fixture),
+          const SizedBox(height: 10),
           _ClubHeader(offer: offer),
           const SizedBox(height: 12),
           _PlayerHero(profile: profile, offer: offer),
@@ -154,6 +191,13 @@ class _OverviewTab extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          _NextMatchCard(
+            fixture: fixture,
+            club: offer.club,
+            league: offer.league,
+            onOpenFixture: onOpenFixture,
           ),
           const SizedBox(height: 12),
           Material(
@@ -393,6 +437,400 @@ class _PageFrame extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 480),
         child: child,
       ),
+    );
+  }
+}
+
+class _SeasonDateStrip extends StatelessWidget {
+  const _SeasonDateStrip({required this.fixture});
+
+  final CareerSeasonFixture fixture;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFC8FF4D).withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: const Color(0xFFC8FF4D).withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.calendar_month_rounded,
+            color: Color(0xFFC8FF4D),
+            size: 19,
+          ),
+          const SizedBox(width: 9),
+          Text(
+            _monthYear(fixture.startDate),
+            key: const Key('careerDate'),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '${fixture.seasonYear} • 1. HAFTA',
+            key: const Key('careerWeek'),
+            style: const TextStyle(
+              color: Color(0xFFC8FF4D),
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NextMatchCard extends StatelessWidget {
+  const _NextMatchCard({
+    required this.fixture,
+    required this.club,
+    required this.league,
+    required this.onOpenFixture,
+  });
+
+  final CareerSeasonFixture fixture;
+  final CareerClub club;
+  final CareerLeague league;
+  final VoidCallback onOpenFixture;
+
+  @override
+  Widget build(BuildContext context) {
+    final match = fixture.nextMatch;
+    final homeClub = match.isHome ? club : match.opponent;
+    final awayClub = match.isHome ? match.opponent : club;
+    return Container(
+      key: const Key('nextMatchCard'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF183E2A), Color(0xFF0D271B)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Text(
+                'SIRADAKİ MAÇ',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${match.week}. HAFTA • ${_shortDate(match.date)}',
+                style: const TextStyle(
+                  color: Color(0xFFC8FF4D),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              league.name,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.42),
+                fontSize: 9,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _MatchClub(club: homeClub, label: 'EV SAHİBİ'),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Column(
+                  children: [
+                    Text(
+                      _dayMonth(match.date),
+                      style: const TextStyle(
+                        color: Color(0xFFC8FF4D),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'VS',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.32),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: _MatchClub(club: awayClub, label: 'DEPLASMAN'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 38,
+            child: OutlinedButton.icon(
+              key: const Key('openFixtureButton'),
+              onPressed: onOpenFixture,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.13)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.list_alt_rounded, size: 17),
+              label: const Text(
+                'TÜM FİKSTÜR',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.7,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MatchClub extends StatelessWidget {
+  const _MatchClub({required this.club, required this.label});
+
+  final CareerClub club;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _ClubLogo(club: club, size: 50),
+        const SizedBox(height: 7),
+        Text(
+          club.name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            height: 1.15,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.32),
+            fontSize: 7,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FixtureSheet extends StatelessWidget {
+  const _FixtureSheet({
+    required this.fixture,
+    required this.club,
+    required this.league,
+  });
+
+  final CareerSeasonFixture fixture;
+  final CareerClub club;
+  final CareerLeague league;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.84,
+        child: DefaultTabController(
+          length: 2,
+          child: Column(
+            children: [
+              const SizedBox(height: 9),
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 12, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '2026/27 FİKSTÜRÜ',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${league.name} • ${fixture.matches.length} maç',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.42),
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              const TabBar(
+                indicatorColor: Color(0xFFC8FF4D),
+                labelColor: Color(0xFFC8FF4D),
+                unselectedLabelColor: Colors.white54,
+                tabs: [
+                  Tab(text: 'İLK YARI'),
+                  Tab(text: 'İKİNCİ YARI'),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _FixtureList(matches: fixture.firstHalf, club: club),
+                    _FixtureList(matches: fixture.secondHalf, club: club),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FixtureList extends StatelessWidget {
+  const _FixtureList({required this.matches, required this.club});
+
+  final List<CareerFixtureMatch> matches;
+  final CareerClub club;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      itemCount: matches.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 7),
+      itemBuilder: (context, index) {
+        final match = matches[index];
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.045),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 38,
+                child: Column(
+                  children: [
+                    Text(
+                      '${match.week}',
+                      style: const TextStyle(
+                        color: Color(0xFFC8FF4D),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      'HAFTA',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        fontSize: 6,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _ClubLogo(club: match.opponent, size: 36),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      match.opponent.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      match.isHome ? 'Ev sahibi' : 'Deplasman',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.4),
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                _shortDate(match.date),
+                style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -944,4 +1382,31 @@ String _formatEuro(int amount) {
   }
   groups.insert(0, remaining);
   return '€${groups.join('.')}';
+}
+
+const _turkishMonths = [
+  'OCAK',
+  'ŞUBAT',
+  'MART',
+  'NİSAN',
+  'MAYIS',
+  'HAZİRAN',
+  'TEMMUZ',
+  'AĞUSTOS',
+  'EYLÜL',
+  'EKİM',
+  'KASIM',
+  'ARALIK',
+];
+
+String _monthYear(DateTime date) =>
+    '${_turkishMonths[date.month - 1]} ${date.year}';
+
+String _dayMonth(DateTime date) =>
+    '${date.day} ${_turkishMonths[date.month - 1]}';
+
+String _shortDate(DateTime date) {
+  final day = date.day.toString().padLeft(2, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  return '$day.$month.${date.year}';
 }

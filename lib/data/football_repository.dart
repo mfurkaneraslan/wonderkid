@@ -60,6 +60,7 @@ class FootballDatasetMeta {
   const FootballDatasetMeta({
     required this.source,
     required this.snapshotDate,
+    required this.overallBoost,
     required this.leagueCount,
     required this.clubCount,
     required this.playerCount,
@@ -69,6 +70,7 @@ class FootballDatasetMeta {
     return FootballDatasetMeta(
       source: json['source'] as String,
       snapshotDate: json['snapshotDate'] as String,
+      overallBoost: json['overallBoost'] as int? ?? 0,
       leagueCount: json['leagueCount'] as int,
       clubCount: json['clubCount'] as int,
       playerCount: json['playerCount'] as int,
@@ -77,6 +79,7 @@ class FootballDatasetMeta {
 
   final String source;
   final String snapshotDate;
+  final int overallBoost;
   final int leagueCount;
   final int clubCount;
   final int playerCount;

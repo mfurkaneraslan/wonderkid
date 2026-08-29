@@ -10,9 +10,11 @@ void main() {
     expect(dataset.meta.leagueCount, 6);
     expect(dataset.meta.clubCount, 114);
     expect(dataset.meta.playerCount, 3148);
+    expect(dataset.meta.overallBoost, 3);
     expect(dataset.leagues, hasLength(6));
     expect(dataset.clubs, hasLength(114));
     expect(dataset.players, hasLength(3148));
+    expect(dataset.players.every((player) => player.overall >= 51), isTrue);
     expect(
       dataset.leagues.map((league) => league.name),
       containsAll([

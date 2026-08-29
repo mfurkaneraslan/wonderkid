@@ -181,11 +181,17 @@ void main() {
       rating: 72,
       playerCount: 25,
     );
+    const opponent = CareerClub(
+      id: 2,
+      name: 'Rakip FC',
+      rating: 71,
+      playerCount: 25,
+    );
     const league = CareerLeague(
       id: 68,
       name: 'Süper Lig',
       country: 'Türkiye',
-      clubs: [club],
+      clubs: [club, opponent],
     );
     const offer = ClubOffer(
       club: club,
@@ -204,6 +210,19 @@ void main() {
 
     expect(find.byKey(const Key('careerDashboard')), findsOneWidget);
     expect(find.text('KARİYER MERKEZİ'), findsOneWidget);
+    expect(find.text('AĞUSTOS 2026'), findsOneWidget);
+    expect(find.text('2026 • 1. HAFTA'), findsOneWidget);
+    expect(find.text('SIRADAKİ MAÇ'), findsOneWidget);
+
+    final fixtureButton = find.byKey(const Key('openFixtureButton'));
+    await tester.ensureVisible(fixtureButton);
+    await tester.pumpAndSettle();
+    await tester.tap(fixtureButton);
+    await tester.pumpAndSettle();
+    expect(find.text('İLK YARI'), findsOneWidget);
+    expect(find.text('İKİNCİ YARI'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('trainingTab')));
     await tester.pumpAndSettle();

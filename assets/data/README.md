@@ -12,6 +12,9 @@ Included first divisions:
 - La Liga (`53`)
 - Süper Lig (`68`)
 
+Oyuncuların kariyer modu OVR değerlerine oyun dengesi için `+3` eklenir
+(`99` üst sınırıyla). Bu artış üretim betiğinin bir parçasıdır.
+
 Regenerate the asset locally with:
 
 ```powershell
