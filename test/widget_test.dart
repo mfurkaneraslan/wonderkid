@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:wonderkid/career/career_save_repository.dart';
 import 'package:wonderkid/create_career_screen.dart';
 import 'package:wonderkid/career/career_profile.dart';
 import 'package:wonderkid/career/offer_generator.dart';
@@ -9,8 +11,13 @@ import 'package:wonderkid/data/football_repository.dart';
 import 'package:wonderkid/main.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('home screen shows the Wonderkid menu', (tester) async {
     await tester.pumpWidget(const WonderkidApp());
+    await tester.pumpAndSettle();
 
     expect(find.text('WONDERKID'), findsOneWidget);
     expect(find.text('YENİ KARİYER'), findsOneWidget);
@@ -19,11 +26,50 @@ void main() {
   });
 
   testWidgets('continue button appears when a save exists', (tester) async {
+    final profile = CareerProfile.create(
+      name: 'Furkan Eraslan',
+      nationality: 'Türkiye',
+      shirtNumber: 7,
+      position: 'ST',
+    );
+    const club = CareerClub(
+      id: 1,
+      name: 'Wonderkid FC',
+      rating: 72,
+      playerCount: 25,
+    );
+    const opponent = CareerClub(
+      id: 2,
+      name: 'Rakip FC',
+      rating: 70,
+      playerCount: 25,
+    );
+    const league = CareerLeague(
+      id: 68,
+      name: 'Süper Lig',
+      country: 'Türkiye',
+      clubs: [club, opponent],
+    );
+    const offer = ClubOffer(
+      club: club,
+      league: league,
+      competitors: [],
+      role: 'Rotasyon',
+      contractYears: 1,
+      weeklySalaryEuro: 9000,
+    );
     await tester.pumpWidget(
-      const WonderkidApp(home: HomeScreen(hasSavedCareer: true)),
+      WonderkidApp(
+        home: HomeScreen(
+          initialCareer: SavedCareer(profile: profile, offer: offer),
+        ),
+      ),
     );
 
     expect(find.text('KARİYERE DEVAM ET'), findsOneWidget);
+    await tester.tap(find.text('KARİYERE DEVAM ET'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('careerDashboard')), findsOneWidget);
   });
 
   testWidgets('new career opens player creation screen', (tester) async {

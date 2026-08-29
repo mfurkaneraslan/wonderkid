@@ -47,6 +47,25 @@ class CareerProfile {
     );
   }
 
+  factory CareerProfile.fromJson(Map<String, dynamic> json) {
+    return CareerProfile(
+      name: json['name'] as String,
+      nationality: json['nationality'] as String,
+      shirtNumber: json['shirtNumber'] as int,
+      position: json['position'] as String,
+      avatarId: json['avatarId'] as int,
+      age: json['age'] as int,
+      overall: json['overall'] as int,
+      pace: json['pace'] as int,
+      shooting: json['shooting'] as int,
+      passing: json['passing'] as int,
+      dribbling: json['dribbling'] as int,
+      defending: json['defending'] as int,
+      physical: json['physical'] as int,
+      seed: json['seed'] as int,
+    );
+  }
+
   static const _attributeModifiers = <String, List<int>>{
     'GK': [-20, -32, -7, -15, 3, 4],
     'LB': [3, -10, 0, 0, 3, 2],
@@ -78,6 +97,23 @@ class CareerProfile {
   final int seed;
 
   String get avatarAssetPath => 'assets/players/avatar_$avatarId.webp';
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'nationality': nationality,
+    'shirtNumber': shirtNumber,
+    'position': position,
+    'avatarId': avatarId,
+    'age': age,
+    'overall': overall,
+    'pace': pace,
+    'shooting': shooting,
+    'passing': passing,
+    'dribbling': dribbling,
+    'defending': defending,
+    'physical': physical,
+    'seed': seed,
+  };
 
   static int _stableHash(String value) {
     var hash = 2166136261;

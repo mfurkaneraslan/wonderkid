@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'career/career_save_repository.dart';
+import 'career_dashboard_screen.dart';
 import 'create_career_screen.dart';
 
 void main() {
@@ -7,9 +9,9 @@ void main() {
 }
 
 class WonderkidApp extends StatelessWidget {
-  const WonderkidApp({super.key, this.home = const HomeScreen()});
+  const WonderkidApp({super.key, this.home});
 
-  final Widget home;
+  final Widget? home;
 
   @override
   Widget build(BuildContext context) {
@@ -25,15 +27,51 @@ class WonderkidApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF071A12),
         useMaterial3: true,
       ),
-      home: home,
+      home: home ?? const HomeScreen(),
     );
   }
 }
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, this.hasSavedCareer = false});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key, this.initialCareer});
 
-  final bool hasSavedCareer;
+  final SavedCareer? initialCareer;
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  SavedCareer? _savedCareer;
+  late bool _loading;
+
+  @override
+  void initState() {
+    super.initState();
+    _savedCareer = widget.initialCareer;
+    _loading = widget.initialCareer == null;
+    if (_loading) _loadCareer();
+  }
+
+  Future<void> _loadCareer() async {
+    final career = await CareerSaveRepository.load();
+    if (!mounted) return;
+    setState(() {
+      _savedCareer = career;
+      _loading = false;
+    });
+  }
+
+  void _continueCareer() {
+    final career = _savedCareer;
+    if (career == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            CareerDashboardScreen(profile: career.profile, offer: career.offer),
+      ),
+    );
+  }
 
   void _showComingSoon(BuildContext context, String feature) {
     ScaffoldMessenger.of(context)
@@ -109,12 +147,19 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 64),
-                      if (hasSavedCareer) ...[
+                      if (_loading) ...[
+                        const SizedBox(
+                          height: 58,
+                          child: Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ] else if (_savedCareer != null) ...[
                         _MenuButton(
                           label: 'KARİYERE DEVAM ET',
                           icon: Icons.play_arrow_rounded,
-                          onPressed: () =>
-                              _showComingSoon(context, 'Kariyere devam etme'),
+                          onPressed: _continueCareer,
                         ),
                         const SizedBox(height: 14),
                       ],

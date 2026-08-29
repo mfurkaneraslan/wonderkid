@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'career/career_profile.dart';
+import 'career/career_save_repository.dart';
 import 'career/offer_generator.dart';
 import 'career_dashboard_screen.dart';
 import 'data/football_repository.dart';
@@ -59,6 +60,8 @@ class _ClubOffersScreenState extends State<ClubOffersScreen> {
       ),
     );
     if (accepted != true || !mounted) return;
+    await CareerSaveRepository.save(profile: widget.profile, offer: offer);
+    if (!mounted) return;
     await Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(
         builder: (_) =>
