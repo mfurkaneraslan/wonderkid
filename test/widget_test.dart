@@ -265,8 +265,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(fixtureButton);
     await tester.pumpAndSettle();
-    expect(find.text('İLK YARI'), findsOneWidget);
-    expect(find.text('İKİNCİ YARI'), findsOneWidget);
+    expect(find.text('İLK YARI'), findsNothing);
+    expect(find.text('İKİNCİ YARI'), findsNothing);
+    expect(find.byIcon(Icons.home_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.flight_rounded), findsOneWidget);
+    expect(find.text('Ev sahibi'), findsNothing);
+    expect(find.text('Deplasman'), findsNothing);
     await tester.tap(find.byIcon(Icons.close_rounded));
     await tester.pumpAndSettle();
 

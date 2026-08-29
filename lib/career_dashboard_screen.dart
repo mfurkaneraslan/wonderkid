@@ -43,11 +43,8 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => _FixtureSheet(
-        fixture: _fixture,
-        club: widget.offer.club,
-        league: widget.offer.league,
-      ),
+      builder: (_) =>
+          _FixtureSheet(fixture: _fixture, league: widget.offer.league),
     );
   }
 
@@ -660,14 +657,9 @@ class _MatchClub extends StatelessWidget {
 }
 
 class _FixtureSheet extends StatelessWidget {
-  const _FixtureSheet({
-    required this.fixture,
-    required this.club,
-    required this.league,
-  });
+  const _FixtureSheet({required this.fixture, required this.league});
 
   final CareerSeasonFixture fixture;
-  final CareerClub club;
   final CareerLeague league;
 
   @override
@@ -676,71 +668,53 @@ class _FixtureSheet extends StatelessWidget {
       top: false,
       child: SizedBox(
         height: MediaQuery.sizeOf(context).height * 0.84,
-        child: DefaultTabController(
-          length: 2,
-          child: Column(
-            children: [
-              const SizedBox(height: 9),
-              Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+        child: Column(
+          children: [
+            const SizedBox(height: 9),
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(4),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 12, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            '2026/27 FİKSTÜRÜ',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w900,
-                            ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 12, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '2026/27 FİKSTÜRÜ',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${league.name} • ${fixture.matches.length} maç',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.42),
-                              fontSize: 10,
-                            ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${league.name} • ${fixture.matches.length} maç',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.42),
+                            fontSize: 10,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ],
-                ),
-              ),
-              const TabBar(
-                indicatorColor: Color(0xFFC8FF4D),
-                labelColor: Color(0xFFC8FF4D),
-                unselectedLabelColor: Colors.white54,
-                tabs: [
-                  Tab(text: 'İLK YARI'),
-                  Tab(text: 'İKİNCİ YARI'),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
                 ],
               ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    _FixtureList(matches: fixture.firstHalf, club: club),
-                    _FixtureList(matches: fixture.secondHalf, club: club),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+            Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
+            Expanded(child: _FixtureList(matches: fixture.matches)),
+          ],
         ),
       ),
     );
@@ -748,10 +722,9 @@ class _FixtureSheet extends StatelessWidget {
 }
 
 class _FixtureList extends StatelessWidget {
-  const _FixtureList({required this.matches, required this.club});
+  const _FixtureList({required this.matches});
 
   final List<CareerFixtureMatch> matches;
-  final CareerClub club;
 
   @override
   Widget build(BuildContext context) {
@@ -797,24 +770,33 @@ class _FixtureList extends StatelessWidget {
               _ClubLogo(club: match.opponent, size: 36),
               const SizedBox(width: 9),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      match.opponent.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
+                    Flexible(
+                      child: Text(
+                        match.opponent.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      match.isHome ? 'Ev sahibi' : 'Deplasman',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.4),
-                        fontSize: 9,
+                    const SizedBox(width: 6),
+                    Tooltip(
+                      message: match.isHome ? 'Ev' : 'Deplasman',
+                      child: Icon(
+                        match.isHome
+                            ? Icons.home_rounded
+                            : Icons.flight_rounded,
+                        key: Key(
+                          match.isHome
+                              ? 'homeMatch_${match.week}'
+                              : 'awayMatch_${match.week}',
+                        ),
+                        size: 14,
+                        color: const Color(0xFFC8FF4D),
                       ),
                     ),
                   ],
