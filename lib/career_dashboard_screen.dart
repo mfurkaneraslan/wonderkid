@@ -48,6 +48,22 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
     );
   }
 
+  Future<void> _showStandings() {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0A2116),
+      barrierColor: Colors.black.withValues(alpha: 0.72),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _StandingsSheet(
+        league: widget.offer.league,
+        selectedClub: widget.offer.club,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -59,7 +75,12 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
         onOpenFixture: _showFixture,
       ),
       _TrainingTab(profile: widget.profile),
-      _TeamTab(profile: widget.profile, offer: widget.offer),
+      _TeamTab(
+        profile: widget.profile,
+        offer: widget.offer,
+        onOpenFixture: _showFixture,
+        onOpenStandings: _showStandings,
+      ),
       const _ShopTab(),
     ];
 
@@ -168,7 +189,7 @@ class _OverviewTab extends StatelessWidget {
           const SizedBox(height: 10),
           _ClubHeader(offer: offer),
           const SizedBox(height: 12),
-          _PlayerHero(profile: profile, offer: offer),
+          _PlayerHero(profile: profile),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -303,41 +324,79 @@ class _TrainingTab extends StatelessWidget {
 }
 
 class _TeamTab extends StatelessWidget {
-  const _TeamTab({required this.profile, required this.offer});
+  const _TeamTab({
+    required this.profile,
+    required this.offer,
+    required this.onOpenFixture,
+    required this.onOpenStandings,
+  });
 
   final CareerProfile profile;
   final ClubOffer offer;
+  final VoidCallback onOpenFixture;
+  final VoidCallback onOpenStandings;
 
   @override
   Widget build(BuildContext context) {
+    final competition =
+        <({String name, String position, int overall, bool isUser})>[
+          (
+            name: profile.name,
+            position: profile.position,
+            overall: profile.overall,
+            isUser: true,
+          ),
+          ...offer.competitors.map(
+            (player) => (
+              name: player.shortName,
+              position: player.positions.first,
+              overall: player.overall,
+              isUser: false,
+            ),
+          ),
+        ]..sort((a, b) {
+          final overallOrder = b.overall.compareTo(a.overall);
+          if (overallOrder != 0) return overallOrder;
+          return a.name.compareTo(b.name);
+        });
+
     return _PageFrame(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
           _ClubHeader(offer: offer),
           const SizedBox(height: 12),
-          _StatusBanner(
-            icon: Icons.shield_outlined,
-            title: 'KADRO ROLÜ',
-            value: offer.role,
-            subtitle: '${profile.position} • #${profile.shirtNumber}',
-            valueSmall: true,
+          Row(
+            children: [
+              Expanded(
+                child: _TeamActionButton(
+                  key: const Key('teamFixtureButton'),
+                  icon: Icons.calendar_month_rounded,
+                  label: 'FİKSTÜR',
+                  onTap: onOpenFixture,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _TeamActionButton(
+                  key: const Key('standingsButton'),
+                  icon: Icons.leaderboard_rounded,
+                  label: 'PUAN DURUMU',
+                  onTap: onOpenStandings,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 18),
           const _SectionTitle(title: 'FORMA REKABETİ'),
           const SizedBox(height: 9),
-          _SquadPlayerRow(
-            name: profile.name,
-            position: profile.position,
-            overall: profile.overall,
-            isUser: true,
-          ),
-          for (final competitor in offer.competitors) ...[
-            const SizedBox(height: 7),
+          for (var index = 0; index < competition.length; index++) ...[
+            if (index > 0) const SizedBox(height: 7),
             _SquadPlayerRow(
-              name: competitor.shortName,
-              position: competitor.positions.first,
-              overall: competitor.overall,
+              name: competition[index].name,
+              position: competition[index].position,
+              overall: competition[index].overall,
+              isUser: competition[index].isUser,
             ),
           ],
           const SizedBox(height: 18),
@@ -817,6 +876,202 @@ class _FixtureList extends StatelessWidget {
   }
 }
 
+class _StandingsSheet extends StatelessWidget {
+  const _StandingsSheet({required this.league, required this.selectedClub});
+
+  final CareerLeague league;
+  final CareerClub selectedClub;
+
+  @override
+  Widget build(BuildContext context) {
+    final clubs = [...league.clubs]..sort((a, b) => a.name.compareTo(b.name));
+
+    return SafeArea(
+      top: false,
+      child: SizedBox(
+        key: const Key('standingsSheet'),
+        height: MediaQuery.sizeOf(context).height * 0.84,
+        child: Column(
+          children: [
+            const SizedBox(height: 9),
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 12, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'PUAN DURUMU',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${league.name} • 2026/27',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.42),
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  const SizedBox(width: 34),
+                  Expanded(
+                    child: Text(
+                      'TAKIM',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.38),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                  const _StandingsHeader(label: 'O'),
+                  const _StandingsHeader(label: 'AV'),
+                  const _StandingsHeader(label: 'P'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 7),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                itemCount: clubs.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 6),
+                itemBuilder: (context, index) {
+                  final club = clubs[index];
+                  final selected = club.id == selectedClub.id;
+                  return Container(
+                    key: Key('standing_${club.id}'),
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 9),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? const Color(0xFFC8FF4D).withValues(alpha: 0.1)
+                          : Colors.white.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(
+                        color: selected
+                            ? const Color(0xFFC8FF4D)
+                            : Colors.white.withValues(alpha: 0.06),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 25,
+                          child: Text(
+                            '${index + 1}',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: selected
+                                  ? const Color(0xFFC8FF4D)
+                                  : Colors.white54,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        _ClubLogo(club: club, size: 30),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            club.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const _StandingsValue(value: '0'),
+                        const _StandingsValue(value: '0'),
+                        const _StandingsValue(value: '0', strong: true),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StandingsHeader extends StatelessWidget {
+  const _StandingsHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 32,
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.38),
+          fontSize: 8,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _StandingsValue extends StatelessWidget {
+  const _StandingsValue({required this.value, this.strong = false});
+
+  final String value;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 32,
+      child: Text(
+        value,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: strong ? const Color(0xFFC8FF4D) : Colors.white70,
+          fontSize: 11,
+          fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
 class _ClubHeader extends StatelessWidget {
   const _ClubHeader({required this.offer});
 
@@ -874,10 +1129,9 @@ class _ClubHeader extends StatelessWidget {
 }
 
 class _PlayerHero extends StatelessWidget {
-  const _PlayerHero({required this.profile, required this.offer});
+  const _PlayerHero({required this.profile});
 
   final CareerProfile profile;
-  final ClubOffer offer;
 
   @override
   Widget build(BuildContext context) {
@@ -900,11 +1154,14 @@ class _PlayerHero extends StatelessWidget {
               border: Border.all(color: const Color(0xFFC8FF4D)),
             ),
             clipBehavior: Clip.antiAlias,
-            child: Image.asset(
-              profile.avatarAssetPath,
-              fit: BoxFit.cover,
-              alignment: Alignment.topCenter,
-              cacheWidth: 228,
+            child: Transform.scale(
+              scale: 1.17,
+              child: Image.asset(
+                profile.avatarAssetPath,
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                cacheWidth: 228,
+              ),
             ),
           ),
           const SizedBox(width: 13),
@@ -929,20 +1186,62 @@ class _PlayerHero extends StatelessWidget {
                     fontSize: 11,
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  offer.role.toUpperCase(),
-                  style: const TextStyle(
-                    color: Color(0xFFC8FF4D),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
-                ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TeamActionButton extends StatelessWidget {
+  const _TeamActionButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.055),
+      borderRadius: BorderRadius.circular(15),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          height: 54,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: const Color(0xFFC8FF4D), size: 19),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -998,14 +1297,12 @@ class _StatusBanner extends StatelessWidget {
     required this.title,
     required this.value,
     required this.subtitle,
-    this.valueSmall = false,
   });
 
   final IconData icon;
   final String title;
   final String value;
   final String subtitle;
-  final bool valueSmall;
 
   @override
   Widget build(BuildContext context) {
@@ -1042,7 +1339,7 @@ class _StatusBanner extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: const Color(0xFFC8FF4D),
-                    fontSize: valueSmall ? 17 : 24,
+                    fontSize: 24,
                     fontWeight: FontWeight.w900,
                   ),
                 ),

@@ -332,7 +332,6 @@ class _OfferCard extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  _InfoChip(label: offer.role),
                   _InfoChip(label: '${offer.contractYears} yıl'),
                   _InfoChip(
                     label: '${_formatEuro(offer.weeklySalaryEuro)} / hafta',

@@ -10,6 +10,58 @@ import 'package:wonderkid/career_dashboard_screen.dart';
 import 'package:wonderkid/data/football_repository.dart';
 import 'package:wonderkid/main.dart';
 
+const _topCompetitor = CareerPlayer(
+  id: 10,
+  shortName: 'Top Rakip',
+  longName: 'Top Rakip',
+  positions: ['ST'],
+  overall: 77,
+  potential: 77,
+  age: 25,
+  clubId: 1,
+  clubName: 'Wonderkid FC',
+  leagueId: 68,
+  nationality: 'Türkiye',
+  preferredFoot: 'Right',
+  pace: 70,
+  shooting: 75,
+  passing: 65,
+  dribbling: 70,
+  defending: 40,
+  physical: 72,
+  gkDiving: null,
+  gkHandling: null,
+  gkKicking: null,
+  gkPositioning: null,
+  gkReflexes: null,
+);
+
+const _lowerCompetitor = CareerPlayer(
+  id: 11,
+  shortName: 'Alt Rakip',
+  longName: 'Alt Rakip',
+  positions: ['ST'],
+  overall: 66,
+  potential: 70,
+  age: 22,
+  clubId: 1,
+  clubName: 'Wonderkid FC',
+  leagueId: 68,
+  nationality: 'Türkiye',
+  preferredFoot: 'Left',
+  pace: 65,
+  shooting: 66,
+  passing: 60,
+  dribbling: 64,
+  defending: 35,
+  physical: 63,
+  gkDiving: null,
+  gkHandling: null,
+  gkKicking: null,
+  gkPositioning: null,
+  gkReflexes: null,
+);
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -242,7 +294,7 @@ void main() {
     const offer = ClubOffer(
       club: club,
       league: league,
-      competitors: [],
+      competitors: [_topCompetitor, _lowerCompetitor],
       role: 'Rotasyon',
       contractYears: 1,
       weeklySalaryEuro: 9000,
@@ -281,6 +333,28 @@ void main() {
     await tester.tap(find.byKey(const Key('teamTab')));
     await tester.pumpAndSettle();
     expect(find.text('FORMA REKABETİ'), findsOneWidget);
+    expect(find.text('KADRO ROLÜ'), findsNothing);
+    expect(find.text('Rotasyon'), findsNothing);
+    expect(find.byKey(const Key('teamFixtureButton')), findsOneWidget);
+    expect(find.byKey(const Key('standingsButton')), findsOneWidget);
+    final topY = tester.getTopLeft(find.text('Top Rakip')).dy;
+    final userY = tester.getTopLeft(find.textContaining('(Sen)')).dy;
+    final lowerY = tester.getTopLeft(find.text('Alt Rakip')).dy;
+    expect(topY, lessThan(userY));
+    expect(userY, lessThan(lowerY));
+
+    await tester.tap(find.byKey(const Key('standingsButton')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('standingsSheet')), findsOneWidget);
+    expect(find.text('PUAN DURUMU'), findsNWidgets(2));
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('teamFixtureButton')));
+    await tester.pumpAndSettle();
+    expect(find.text('2026/27 FİKSTÜRÜ'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('shopTab')));
     await tester.pumpAndSettle();
