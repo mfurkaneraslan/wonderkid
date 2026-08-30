@@ -313,6 +313,20 @@ void main() {
     expect(find.textContaining('Fizik +1'), findsOneWidget);
   });
 
+  testWidgets('physical balance fails without player input', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(attribute: TrainingAttribute.physical),
+      ),
+    );
+
+    await tester.pump(const Duration(seconds: 20));
+    await tester.pump();
+
+    expect(find.byKey(const Key('trainingResult')), findsOneWidget);
+    expect(find.textContaining('Gelişim kazanamadın'), findsOneWidget);
+  });
+
   testWidgets('dribbling player follows horizontal drag without lane taps', (
     tester,
   ) async {
