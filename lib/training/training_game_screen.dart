@@ -146,7 +146,11 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     };
     for (final x in positions) {
       _dribbleCones.add(
-        _DribbleCone(x: x, y: -0.12, speed: 0.6 + (_random.nextDouble() * 0.1)),
+        _DribbleCone(
+          x: x,
+          y: -0.12,
+          speed: 0.68 + (_random.nextDouble() * 0.12),
+        ),
       );
     }
     _dribbleWave++;
@@ -162,7 +166,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _dribbleElapsed += deltaSeconds;
     _dribbleSpawnElapsed += deltaSeconds;
     _dribbleInvulnerability = max(0, _dribbleInvulnerability - deltaSeconds);
-    final speedMultiplier = 1 + ((_dribbleElapsed / _duration) * 0.8);
+    final speedMultiplier = 1 + ((_dribbleElapsed / _duration) * 0.95);
     final spawnInterval = 1.5 - ((_dribbleElapsed / _duration) * 0.75);
     var collision = false;
     final removedCones = <_DribbleCone>[];
