@@ -63,6 +63,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   static const _duration = 20;
   final Random _random = Random();
   late final AnimationController _meterController;
+  late final AnimationController _shotController;
   Timer? _timer;
   Timer? _paceTickTimer;
   Timer? _dribbleTimer;
@@ -74,6 +75,12 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   bool _finished = false;
   bool? _lastSuccess;
   final List<_PaceTarget> _paceTargets = [];
+  Offset _shotDrag = Offset.zero;
+  double _shotFieldWidth = 0;
+  double _shotFieldHeight = 0;
+  bool _shotAnimating = false;
+  _ShotOutcome? _shotOutcome;
+  String? _shotFeedback;
   double _dribblePlayerX = 0.5;
   double _dribbleTrackWidth = 0;
   double _dribbleTrackHeight = 0;
@@ -90,6 +97,13 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       vsync: this,
       duration: const Duration(milliseconds: 850),
     )..repeat(reverse: true);
+    _shotController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 720),
+        )..addStatusListener((status) {
+          if (status == AnimationStatus.completed) _completeShot();
+        });
     _nextChallenge(initial: true);
     _startTimer();
     _startPaceChallenge();
@@ -203,6 +217,58 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       if (_paceTargets.isEmpty && _lives > 0) _spawnPaceTarget();
     });
     if (_lives <= 0) _finish();
+  }
+
+  void _beginShot(DragStartDetails details) {
+    if (_finished || _shotAnimating) return;
+    setState(() {
+      _shotDrag = Offset.zero;
+      _shotFeedback = null;
+    });
+  }
+
+  void _updateShotDrag(DragUpdateDetails details) {
+    if (_finished || _shotAnimating) return;
+    setState(() {
+      _shotDrag = Offset(
+        (_shotDrag.dx + details.delta.dx).clamp(
+          -_shotFieldWidth * 0.45,
+          _shotFieldWidth * 0.45,
+        ),
+        (_shotDrag.dy + details.delta.dy).clamp(-_shotFieldHeight, 0.0),
+      );
+    });
+  }
+
+  void _releaseShot(DragEndDetails details) {
+    if (_finished || _shotAnimating || _shotFieldHeight <= 0) return;
+    final power = (-_shotDrag.dy / _shotFieldHeight).clamp(0.0, 1.0);
+    final outcome = switch (power) {
+      < 0.32 => _ShotOutcome.weak,
+      <= 0.66 => _ShotOutcome.goal,
+      _ => _ShotOutcome.over,
+    };
+    setState(() {
+      _shotOutcome = outcome;
+      _shotAnimating = true;
+      _shotFeedback = switch (outcome) {
+        _ShotOutcome.weak => 'ÇOK ZAYIF',
+        _ShotOutcome.goal => 'DENGELİ ŞUT',
+        _ShotOutcome.over => 'FAZLA GÜÇLÜ',
+      };
+    });
+    _shotController.forward(from: 0);
+  }
+
+  void _completeShot() {
+    if (!mounted || _finished || !_shotAnimating) return;
+    final success = _shotOutcome == _ShotOutcome.goal;
+    setState(() {
+      _shotAnimating = false;
+      _shotDrag = Offset.zero;
+      _shotFeedback = success ? 'GOL!' : _shotFeedback;
+    });
+    _answer(success);
   }
 
   void _spawnDribbleWave({bool initial = false}) {
@@ -352,6 +418,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _paceTickTimer?.cancel();
     _dribbleTimer?.cancel();
     _meterController.stop();
+    _shotController.stop();
     setState(() => _finished = true);
   }
 
@@ -362,9 +429,14 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       _score = 0;
       _finished = false;
       _lastSuccess = null;
+      _shotAnimating = false;
+      _shotOutcome = null;
+      _shotFeedback = null;
+      _shotDrag = Offset.zero;
       _nextChallenge(initial: true);
     });
     _meterController.repeat(reverse: true);
+    _shotController.reset();
     _startTimer();
     _startPaceChallenge();
     _startDribblePhysics();
@@ -393,6 +465,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _paceTickTimer?.cancel();
     _dribbleTimer?.cancel();
     _meterController.dispose();
+    _shotController.dispose();
     super.dispose();
   }
 
@@ -594,50 +667,143 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   Widget _shootingGame() {
-    return Center(
-      child: AspectRatio(
-        aspectRatio: 1.35,
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0E442B),
-            border: Border.all(color: Colors.white54, width: 3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: GridView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 9,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 6,
-              mainAxisSpacing: 6,
-              childAspectRatio: 1.4,
-            ),
-            itemBuilder: (_, index) => InkWell(
-              key: Key('shootingTarget$index'),
-              onTap: () => _answer(index == _target),
-              borderRadius: BorderRadius.circular(12),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                decoration: BoxDecoration(
-                  color: index == _target ? _accent : Colors.black12,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: Icon(
-                  index == _target
-                      ? Icons.adjust_rounded
-                      : Icons.grid_3x3_rounded,
-                  color: index == _target
-                      ? const Color(0xFF092115)
-                      : Colors.white12,
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _shotFieldWidth = constraints.maxWidth;
+        _shotFieldHeight = constraints.maxHeight;
+        final power = constraints.maxHeight <= 0
+            ? 0.0
+            : (-_shotDrag.dy / constraints.maxHeight).clamp(0.0, 1.0);
+        return GestureDetector(
+          key: const Key('shootingSwipeArea'),
+          behavior: HitTestBehavior.opaque,
+          onPanStart: _beginShot,
+          onPanUpdate: _updateShotDrag,
+          onPanEnd: _releaseShot,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF0D492D),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(painter: const _ShotFieldPainter()),
+                  ),
+                  Positioned(
+                    key: const Key('shootingGoal'),
+                    top: 22,
+                    left: constraints.maxWidth * 0.12,
+                    width: constraints.maxWidth * 0.76,
+                    height: constraints.maxHeight * 0.32,
+                    child: CustomPaint(painter: const _GoalPainter()),
+                  ),
+                  if (_shotFeedback != null)
+                    Positioned(
+                      top: constraints.maxHeight * 0.38,
+                      left: 0,
+                      right: 0,
+                      child: Text(
+                        _shotFeedback!,
+                        key: const Key('shotFeedback'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _shotOutcome == _ShotOutcome.goal
+                              ? _accent
+                              : const Color(0xFFFF8A65),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ),
+                  Positioned(
+                    right: 14,
+                    bottom: 52,
+                    width: 12,
+                    height: constraints.maxHeight * 0.32,
+                    child: _ShotPowerMeter(power: power),
+                  ),
+                  AnimatedBuilder(
+                    animation: _shotController,
+                    builder: (context, child) {
+                      final position = _shotBallPosition(
+                        Size(constraints.maxWidth, constraints.maxHeight),
+                      );
+                      return Positioned(
+                        key: const Key('shootingBall'),
+                        left: position.dx,
+                        top: position.dy,
+                        child: child!,
+                      );
+                    },
+                    child: Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        border: Border.all(color: Colors.black54, width: 2),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black38, blurRadius: 8),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.sports_soccer_rounded,
+                        color: Colors.black87,
+                        size: 38,
+                      ),
+                    ),
+                  ),
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 12,
+                    child: Text(
+                      'TOPU YUKARI SWIPE’LA',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
+  }
+
+  Offset _shotBallPosition(Size size) {
+    const ballSize = 46.0;
+    final start = Offset((size.width - ballSize) / 2, size.height - 82);
+    if (!_shotAnimating || _shotOutcome == null) return start;
+    final t = Curves.easeOut.transform(_shotController.value);
+    final horizontalShift = _shotDrag.dx * 0.28 * t;
+    return switch (_shotOutcome!) {
+      _ShotOutcome.goal => Offset(
+        start.dx + horizontalShift,
+        start.dy - ((start.dy - (size.height * 0.19)) * t) - (sin(pi * t) * 34),
+      ),
+      _ShotOutcome.weak => Offset(
+        start.dx + horizontalShift,
+        start.dy -
+            (sin(pi * t) * size.height * 0.28) -
+            (t * size.height * 0.08),
+      ),
+      _ShotOutcome.over => Offset(
+        start.dx + horizontalShift,
+        start.dy - ((size.height + 70) * t),
+      ),
+    };
   }
 
   Widget _passingGame() {
@@ -892,6 +1058,97 @@ class _PaceTarget {
   final double duration;
   double elapsed = 0;
   bool spawnedNext = false;
+}
+
+enum _ShotOutcome { weak, goal, over }
+
+class _ShotPowerMeter extends StatelessWidget {
+  const _ShotPowerMeter({required this.power});
+
+  final double power;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          const Column(
+            children: [
+              Expanded(child: ColoredBox(color: Color(0x55FF7043))),
+              Expanded(child: ColoredBox(color: Color(0x668BC34A))),
+              Expanded(child: ColoredBox(color: Color(0x55FFC107))),
+            ],
+          ),
+          FractionallySizedBox(
+            heightFactor: power,
+            child: Container(color: Colors.white.withValues(alpha: 0.82)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GoalPainter extends CustomPainter {
+  const _GoalPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final post = Paint()
+      ..color = Colors.white.withValues(alpha: 0.9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5;
+    final net = Paint()
+      ..color = Colors.white.withValues(alpha: 0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final goal = Rect.fromLTWH(3, 3, size.width - 6, size.height - 6);
+    canvas.drawRect(goal, post);
+    for (var column = 1; column < 6; column++) {
+      final x = size.width * column / 6;
+      canvas.drawLine(Offset(x, 5), Offset(x, size.height - 5), net);
+    }
+    for (var row = 1; row < 4; row++) {
+      final y = size.height * row / 4;
+      canvas.drawLine(Offset(5, y), Offset(size.width - 5, y), net);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _GoalPainter oldDelegate) => false;
+}
+
+class _ShotFieldPainter extends CustomPainter {
+  const _ShotFieldPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final line = Paint()
+      ..color = Colors.white.withValues(alpha: 0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawLine(
+      Offset(0, size.height * 0.72),
+      Offset(size.width, size.height * 0.72),
+      line,
+    );
+    canvas.drawArc(
+      Rect.fromCenter(
+        center: Offset(size.width / 2, size.height * 0.72),
+        width: size.width * 0.6,
+        height: size.height * 0.3,
+      ),
+      pi,
+      pi,
+      false,
+      line,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ShotFieldPainter oldDelegate) => false;
 }
 
 class _DribbleCone {
@@ -1166,7 +1423,7 @@ _TrainingInfo _trainingInfo(TrainingAttribute attribute) => switch (attribute) {
   ),
   TrainingAttribute.shooting => const _TrainingInfo(
     title: 'Şut',
-    instruction: 'Kalede parlayan hedefi vur.',
+    instruction: 'Topu dengeli güçle swipe’la, yere değmeden gol at.',
     icon: Icons.sports_soccer_rounded,
   ),
   TrainingAttribute.passing => const _TrainingInfo(

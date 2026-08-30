@@ -119,6 +119,49 @@ void main() {
     expect(activeTargets(), findsNWidgets(2));
   });
 
+  testWidgets('shooting scores with a balanced upward swipe', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
+      ),
+    );
+
+    expect(find.byKey(const Key('shootingGoal')), findsOneWidget);
+    expect(find.byKey(const Key('shootingBall')), findsOneWidget);
+    final swipeArea = find.byKey(const Key('shootingSwipeArea'));
+    final fieldHeight = tester.getSize(swipeArea).height;
+
+    await tester.drag(swipeArea, Offset(0, -fieldHeight * 0.48));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump();
+
+    final feedback = find.byKey(const Key('shotFeedback'));
+    expect(feedback, findsOneWidget);
+    expect(tester.widget<Text>(feedback).data, 'GOL!');
+  });
+
+  testWidgets('shooting rejects weak and overpowered swipes', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
+      ),
+    );
+
+    final swipeArea = find.byKey(const Key('shootingSwipeArea'));
+    final fieldHeight = tester.getSize(swipeArea).height;
+
+    await tester.drag(swipeArea, Offset(0, -fieldHeight * 0.18));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.text('ÇOK ZAYIF'), findsOneWidget);
+
+    await tester.drag(swipeArea, Offset(0, -fieldHeight * 0.82));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.text('FAZLA GÜÇLÜ'), findsOneWidget);
+  });
+
   testWidgets('dribbling player follows horizontal drag without lane taps', (
     tester,
   ) async {
