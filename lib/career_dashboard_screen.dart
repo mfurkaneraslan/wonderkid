@@ -4,6 +4,7 @@ import 'career/career_profile.dart';
 import 'career/fixture_generator.dart';
 import 'career/offer_generator.dart';
 import 'data/football_repository.dart';
+import 'training/training_game_screen.dart';
 
 class CareerDashboardScreen extends StatefulWidget {
   const CareerDashboardScreen({
@@ -22,6 +23,8 @@ class CareerDashboardScreen extends StatefulWidget {
 class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
   static const _accent = Color(0xFFC8FF4D);
   int _selectedIndex = 0;
+  int _developmentPoints = 0;
+  final Map<TrainingAttribute, int> _bestTrainingScores = {};
   late final CareerSeasonFixture _fixture;
 
   @override
@@ -64,6 +67,22 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
     );
   }
 
+  Future<void> _openTraining(TrainingAttribute attribute) async {
+    final result = await Navigator.of(context).push<TrainingResult>(
+      MaterialPageRoute<TrainingResult>(
+        builder: (_) => TrainingGameScreen(attribute: attribute),
+      ),
+    );
+    if (!mounted || result == null) return;
+    setState(() {
+      _developmentPoints += result.developmentPoints;
+      final previousBest = _bestTrainingScores[attribute] ?? 0;
+      if (result.score > previousBest) {
+        _bestTrainingScores[attribute] = result.score;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -74,7 +93,12 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
         onOpenTraining: () => setState(() => _selectedIndex = 1),
         onOpenFixture: _showFixture,
       ),
-      _TrainingTab(profile: widget.profile),
+      _TrainingTab(
+        profile: widget.profile,
+        developmentPoints: _developmentPoints,
+        bestScores: _bestTrainingScores,
+        onStartTraining: _openTraining,
+      ),
       _TeamTab(
         profile: widget.profile,
         offer: widget.offer,
@@ -274,9 +298,17 @@ class _OverviewTab extends StatelessWidget {
 }
 
 class _TrainingTab extends StatelessWidget {
-  const _TrainingTab({required this.profile});
+  const _TrainingTab({
+    required this.profile,
+    required this.developmentPoints,
+    required this.bestScores,
+    required this.onStartTraining,
+  });
 
   final CareerProfile profile;
+  final int developmentPoints;
+  final Map<TrainingAttribute, int> bestScores;
+  final ValueChanged<TrainingAttribute> onStartTraining;
 
   @override
   Widget build(BuildContext context) {
@@ -287,31 +319,64 @@ class _TrainingTab extends StatelessWidget {
           _StatusBanner(
             icon: Icons.bolt_rounded,
             title: 'GELİŞİM PUANI',
-            value: '0',
-            subtitle: 'Antrenman yaparak puan kazan.',
+            value: '$developmentPoints',
+            subtitle: '15 saniye • 3 hata hakkı',
           ),
           const SizedBox(height: 18),
-          const _SectionTitle(title: 'BU HAFTANIN PROGRAMI'),
+          const _SectionTitle(title: 'ANTRENMANINI SEÇ'),
           const SizedBox(height: 9),
-          const _TrainingCard(
+          _TrainingCard(
+            key: const Key('paceTrainingCard'),
             icon: Icons.speed_rounded,
-            title: 'Hız ve Çeviklik',
-            detail: 'Tempo • Sprint • Top kontrolü',
-            reward: '+2 GP',
+            title: 'Hız',
+            detail: 'Sprint ritmini yakala',
+            bestScore: bestScores[TrainingAttribute.pace],
+            onTap: () => onStartTraining(TrainingAttribute.pace),
           ),
           const SizedBox(height: 8),
-          const _TrainingCard(
+          _TrainingCard(
+            key: const Key('shootingTrainingCard'),
             icon: Icons.sports_soccer_rounded,
-            title: 'Bitiricilik',
-            detail: 'Şut • Pozisyon alma • Soğukkanlılık',
-            reward: '+2 GP',
+            title: 'Şut',
+            detail: 'Kalede doğru köşeyi bul',
+            bestScore: bestScores[TrainingAttribute.shooting],
+            onTap: () => onStartTraining(TrainingAttribute.shooting),
           ),
           const SizedBox(height: 8),
-          const _TrainingCard(
+          _TrainingCard(
+            key: const Key('passingTrainingCard'),
             icon: Icons.route_rounded,
-            title: 'Pas Oyunu',
-            detail: 'Kısa pas • Uzun pas • Vizyon',
-            reward: '+2 GP',
+            title: 'Pas',
+            detail: 'İşaretlenen oyuncuyu bul',
+            bestScore: bestScores[TrainingAttribute.passing],
+            onTap: () => onStartTraining(TrainingAttribute.passing),
+          ),
+          const SizedBox(height: 8),
+          _TrainingCard(
+            key: const Key('dribblingTrainingCard'),
+            icon: Icons.multiple_stop_rounded,
+            title: 'Dribbling',
+            detail: 'Koniler arasından sıyrıl',
+            bestScore: bestScores[TrainingAttribute.dribbling],
+            onTap: () => onStartTraining(TrainingAttribute.dribbling),
+          ),
+          const SizedBox(height: 8),
+          _TrainingCard(
+            key: const Key('defendingTrainingCard'),
+            icon: Icons.shield_outlined,
+            title: 'Defans',
+            detail: 'Rakibin hamlesini karşıla',
+            bestScore: bestScores[TrainingAttribute.defending],
+            onTap: () => onStartTraining(TrainingAttribute.defending),
+          ),
+          const SizedBox(height: 8),
+          _TrainingCard(
+            key: const Key('physicalTrainingCard'),
+            icon: Icons.fitness_center_rounded,
+            title: 'Fizik',
+            detail: 'Güç göstergesini dengede tut',
+            bestScore: bestScores[TrainingAttribute.physical],
+            onTap: () => onStartTraining(TrainingAttribute.physical),
           ),
           const SizedBox(height: 18),
           const _SectionTitle(title: 'MEVCUT ÖZELLİKLER'),
@@ -1361,52 +1426,86 @@ class _StatusBanner extends StatelessWidget {
 
 class _TrainingCard extends StatelessWidget {
   const _TrainingCard({
+    super.key,
     required this.icon,
     required this.title,
     required this.detail,
-    required this.reward,
+    required this.onTap,
+    this.bestScore,
   });
 
   final IconData icon;
   final String title;
   final String detail;
-  final String reward;
+  final VoidCallback onTap;
+  final int? bestScore;
 
   @override
   Widget build(BuildContext context) {
-    return _Panel(
-      child: Row(
-        children: [
-          Icon(icon, color: const Color(0xFFC8FF4D)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+    return Material(
+      color: Colors.white.withValues(alpha: 0.045),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFC8FF4D).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  detail,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.42),
-                    fontSize: 10,
+                child: Icon(icon, color: const Color(0xFFC8FF4D)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      detail,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.42),
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Color(0xFFC8FF4D),
                   ),
-                ),
-              ],
-            ),
+                  if (bestScore != null)
+                    Text(
+                      'EN İYİ $bestScore',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.38),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ),
-          Text(
-            reward,
-            style: const TextStyle(
-              color: Color(0xFFC8FF4D),
-              fontWeight: FontWeight.w900,
-              fontSize: 11,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

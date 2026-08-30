@@ -328,7 +328,18 @@ void main() {
 
     await tester.tap(find.byKey(const Key('trainingTab')));
     await tester.pumpAndSettle();
-    expect(find.text('BU HAFTANIN PROGRAMI'), findsOneWidget);
+    expect(find.text('ANTRENMANINI SEÇ'), findsOneWidget);
+    expect(find.byKey(const Key('paceTrainingCard')), findsOneWidget);
+    expect(find.byKey(const Key('shootingTrainingCard')), findsOneWidget);
+    expect(find.byKey(const Key('passingTrainingCard')), findsOneWidget);
+    expect(find.byKey(const Key('dribblingTrainingCard')), findsOneWidget);
+    expect(find.byKey(const Key('defendingTrainingCard')), findsOneWidget);
+    await tester.drag(
+      find.byType(ListView),
+      const Offset(0, -420),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('physicalTrainingCard')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('teamTab')));
     await tester.pumpAndSettle();
