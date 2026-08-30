@@ -259,7 +259,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     void resetBalance() {
       _physicalPosition = 0;
       _physicalVelocity = 0;
-      _physicalDrift = _random.nextBool() ? 0.68 : -0.68;
+      _physicalDrift = _random.nextBool() ? 0.78 : -0.78;
       _physicalDriftElapsed = 0;
       _physicalLeftHeld = false;
       _physicalRightHeld = false;
@@ -287,8 +287,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       0.0,
       1.0,
     );
-    final difficulty = 1.15 + (elapsedRatio * 2.15);
-    final driftInterval = 0.62 - (elapsedRatio * 0.32);
+    final difficulty = 1.30 + (elapsedRatio * 2.70);
+    final driftInterval = 0.54 - (elapsedRatio * 0.29);
     var fell = false;
 
     setState(() {
@@ -296,29 +296,29 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       if (_physicalDriftElapsed >= driftInterval) {
         _physicalDriftElapsed = 0;
         var nextDrift = (_random.nextDouble() * 2) - 1;
-        if (nextDrift.abs() < 0.40) {
-          nextDrift = nextDrift.isNegative ? -0.40 : 0.40;
+        if (nextDrift.abs() < 0.48) {
+          nextDrift = nextDrift.isNegative ? -0.48 : 0.48;
         }
         _physicalDrift = nextDrift;
-        _physicalVelocity += _physicalDrift * 0.075 * difficulty;
+        _physicalVelocity += _physicalDrift * 0.090 * difficulty;
       }
 
       final control =
           (_physicalRightHeld ? 1.0 : 0.0) - (_physicalLeftHeld ? 1.0 : 0.0);
-      final outwardPull = _physicalPosition * 0.88 * difficulty;
-      final randomPull = _physicalDrift * 0.60 * difficulty;
+      final outwardPull = _physicalPosition * 1.02 * difficulty;
+      final randomPull = _physicalDrift * 0.70 * difficulty;
       _physicalVelocity +=
-          (outwardPull + randomPull + (control * 2.55)) * deltaSeconds;
-      _physicalVelocity *= 0.990 - (elapsedRatio * 0.001);
+          (outwardPull + randomPull + (control * 2.35)) * deltaSeconds;
+      _physicalVelocity *= 0.993 - (elapsedRatio * 0.001);
       _physicalPosition += _physicalVelocity * deltaSeconds;
 
-      if (_physicalPosition.abs() >= 0.96) {
+      if (_physicalPosition.abs() >= 0.93) {
         fell = true;
         _lives--;
         _lastSuccess = false;
         _physicalPosition = 0;
         _physicalVelocity = 0;
-        _physicalDrift = _random.nextBool() ? 0.68 : -0.68;
+        _physicalDrift = _random.nextBool() ? 0.78 : -0.78;
         _physicalDriftElapsed = 0;
       }
     });
@@ -335,7 +335,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
         _physicalRightHeld = pressed;
       }
       if (pressed) {
-        _physicalVelocity += direction * 0.055;
+        _physicalVelocity += direction * 0.045;
       }
     });
   }
