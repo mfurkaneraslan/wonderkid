@@ -25,13 +25,24 @@ void main() {
       profile: profile,
     ).first;
 
-    await CareerSaveRepository.save(profile: profile, offer: offer);
+    final trainedProfile = profile.increaseAttribute('shooting');
+    await CareerSaveRepository.save(
+      profile: trainedProfile,
+      offer: offer,
+      currentWeek: 4,
+      lastTrainingWeek: 3,
+      lastTrainingAttribute: 'shooting',
+    );
     final savedCareer = await CareerSaveRepository.load();
 
     expect(savedCareer, isNotNull);
     expect(savedCareer!.profile.name, profile.name);
     expect(savedCareer.profile.avatarId, profile.avatarId);
     expect(savedCareer.profile.overall, profile.overall);
+    expect(savedCareer.profile.shooting, profile.shooting + 1);
+    expect(savedCareer.currentWeek, 4);
+    expect(savedCareer.lastTrainingWeek, 3);
+    expect(savedCareer.lastTrainingAttribute, 'shooting');
     expect(savedCareer.offer.club.id, offer.club.id);
     expect(savedCareer.offer.league.id, offer.league.id);
     expect(savedCareer.offer.weeklySalaryEuro, offer.weeklySalaryEuro);

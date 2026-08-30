@@ -67,8 +67,13 @@ class _HomeScreenState extends State<HomeScreen> {
     if (career == null) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            CareerDashboardScreen(profile: career.profile, offer: career.offer),
+        builder: (_) => CareerDashboardScreen(
+          profile: career.profile,
+          offer: career.offer,
+          currentWeek: career.currentWeek,
+          lastTrainingWeek: career.lastTrainingWeek,
+          lastTrainingAttribute: career.lastTrainingAttribute,
+        ),
       ),
     );
   }

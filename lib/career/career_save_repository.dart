@@ -7,10 +7,19 @@ import 'career_profile.dart';
 import 'offer_generator.dart';
 
 class SavedCareer {
-  const SavedCareer({required this.profile, required this.offer});
+  const SavedCareer({
+    required this.profile,
+    required this.offer,
+    this.currentWeek = 1,
+    this.lastTrainingWeek,
+    this.lastTrainingAttribute,
+  });
 
   final CareerProfile profile;
   final ClubOffer offer;
+  final int currentWeek;
+  final int? lastTrainingWeek;
+  final String? lastTrainingAttribute;
 }
 
 class CareerSaveRepository {
@@ -19,6 +28,9 @@ class CareerSaveRepository {
   static Future<void> save({
     required CareerProfile profile,
     required ClubOffer offer,
+    int currentWeek = 1,
+    int? lastTrainingWeek,
+    String? lastTrainingAttribute,
   }) async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString(
@@ -26,6 +38,11 @@ class CareerSaveRepository {
       jsonEncode({
         'version': 1,
         'profile': profile.toJson(),
+        'progress': {
+          'currentWeek': currentWeek,
+          'lastTrainingWeek': lastTrainingWeek,
+          'lastTrainingAttribute': lastTrainingAttribute,
+        },
         'offer': {
           'leagueId': offer.league.id,
           'clubId': offer.club.id,
@@ -52,6 +69,7 @@ class CareerSaveRepository {
       final profile = CareerProfile.fromJson(
         json['profile'] as Map<String, dynamic>,
       );
+      final progressJson = json['progress'] as Map<String, dynamic>?;
       final offerJson = json['offer'] as Map<String, dynamic>;
       final dataset = await FootballRepository.load();
       final league = dataset.leagues.firstWhere(
@@ -71,6 +89,10 @@ class CareerSaveRepository {
 
       return SavedCareer(
         profile: profile,
+        currentWeek: progressJson?['currentWeek'] as int? ?? 1,
+        lastTrainingWeek: progressJson?['lastTrainingWeek'] as int?,
+        lastTrainingAttribute:
+            progressJson?['lastTrainingAttribute'] as String?,
         offer: ClubOffer(
           club: club,
           league: league,

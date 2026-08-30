@@ -96,6 +96,25 @@ class CareerProfile {
   final int physical;
   final int seed;
 
+  CareerProfile increaseAttribute(String attribute) {
+    return CareerProfile(
+      name: name,
+      nationality: nationality,
+      shirtNumber: shirtNumber,
+      position: position,
+      avatarId: avatarId,
+      age: age,
+      overall: overall,
+      pace: pace + (attribute == 'pace' ? 1 : 0),
+      shooting: shooting + (attribute == 'shooting' ? 1 : 0),
+      passing: passing + (attribute == 'passing' ? 1 : 0),
+      dribbling: dribbling + (attribute == 'dribbling' ? 1 : 0),
+      defending: defending + (attribute == 'defending' ? 1 : 0),
+      physical: physical + (attribute == 'physical' ? 1 : 0),
+      seed: seed,
+    );
+  }
+
   String get avatarAssetPath => 'assets/players/avatar_$avatarId.webp';
 
   Map<String, dynamic> toJson() => {

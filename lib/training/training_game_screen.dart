@@ -12,18 +12,29 @@ enum TrainingAttribute {
   physical,
 }
 
+extension TrainingAttributeLabel on TrainingAttribute {
+  String get turkishLabel => switch (this) {
+    TrainingAttribute.pace => 'Hız',
+    TrainingAttribute.shooting => 'Şut',
+    TrainingAttribute.passing => 'Pas',
+    TrainingAttribute.dribbling => 'Dribbling',
+    TrainingAttribute.defending => 'Defans',
+    TrainingAttribute.physical => 'Fizik',
+  };
+}
+
 class TrainingResult {
   const TrainingResult({
     required this.attribute,
     required this.score,
-    required this.developmentPoints,
     required this.grade,
+    required this.isSuccessful,
   });
 
   final TrainingAttribute attribute;
   final int score;
-  final int developmentPoints;
   final String grade;
+  final bool isSuccessful;
 }
 
 class TrainingGameScreen extends StatefulWidget {
@@ -141,13 +152,6 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   TrainingResult get _result {
-    final points = switch (_score) {
-      >= 15 => 4,
-      >= 10 => 3,
-      >= 5 => 2,
-      >= 1 => 1,
-      _ => 0,
-    };
     final grade = switch (_score) {
       >= 18 => 'S',
       >= 14 => 'A',
@@ -158,8 +162,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     return TrainingResult(
       attribute: widget.attribute,
       score: _score,
-      developmentPoints: points,
       grade: grade,
+      isSuccessful: _score >= 5,
     );
   }
 
@@ -624,10 +628,25 @@ class _ResultView extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          '${result.score} doğru hamle  •  +${result.developmentPoints} GP',
+          result.isSuccessful
+              ? '${result.score} doğru hamle  •  ${result.attribute.turkishLabel} +1'
+              : '${result.score} doğru hamle  •  Gelişim kazanamadın',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.55),
             fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          result.isSuccessful
+              ? 'Başarılı antrenman!'
+              : 'Başarı için en az 5 doğru hamle gerekiyor.',
+          style: TextStyle(
+            color: result.isSuccessful
+                ? const Color(0xFFC8FF4D)
+                : const Color(0xFFFFC46B),
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(height: 38),
