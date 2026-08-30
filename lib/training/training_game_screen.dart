@@ -58,11 +58,12 @@ class TrainingGameScreen extends StatefulWidget {
 }
 
 class _TrainingGameScreenState extends State<TrainingGameScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const _accent = Color(0xFFC8FF4D);
   static const _duration = 20;
   final Random _random = Random();
   late final AnimationController _meterController;
+  late final AnimationController _paceController;
   Timer? _timer;
   Timer? _paceTimer;
   Timer? _dribbleTimer;
@@ -89,6 +90,10 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       vsync: this,
       duration: const Duration(milliseconds: 850),
     )..repeat(reverse: true);
+    _paceController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
     _nextChallenge(initial: true);
     _startTimer();
     _startPaceChallenge();
@@ -128,7 +133,19 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void _startPaceChallenge() {
     if (widget.attribute != TrainingAttribute.pace || _finished) return;
     _paceTimer?.cancel();
-    _paceTimer = Timer(const Duration(seconds: 1), _missPaceTarget);
+    final responseWindow = _paceResponseWindow;
+    _paceController
+      ..duration = responseWindow
+      ..forward(from: 0);
+    _paceTimer = Timer(responseWindow, _missPaceTarget);
+  }
+
+  Duration get _paceResponseWindow {
+    final elapsedRatio = ((_duration - _secondsLeft) / _duration).clamp(
+      0.0,
+      1.0,
+    );
+    return Duration(milliseconds: (1000 - (elapsedRatio * 500)).round());
   }
 
   void _missPaceTarget() {
@@ -313,6 +330,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _paceTimer?.cancel();
     _dribbleTimer?.cancel();
     _meterController.stop();
+    _paceController.stop();
     setState(() => _finished = true);
   }
 
@@ -354,6 +372,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _paceTimer?.cancel();
     _dribbleTimer?.cancel();
     _meterController.dispose();
+    _paceController.dispose();
     super.dispose();
   }
 
@@ -502,31 +521,48 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
                 key: Key('paceTarget$index'),
                 onTap: () => _answerPace(index),
                 borderRadius: BorderRadius.circular(18),
-                child: AnimatedContainer(
+                child: AnimatedBuilder(
                   key: active ? const Key('paceActiveTarget') : null,
-                  duration: const Duration(milliseconds: 120),
-                  decoration: BoxDecoration(
-                    color: active ? _accent : const Color(0xFF123524),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: active ? _accent : Colors.white12,
-                      width: 2,
-                    ),
-                    boxShadow: active
-                        ? const [
-                            BoxShadow(
-                              color: Color(0x66C8FF4D),
-                              blurRadius: 18,
-                              spreadRadius: 2,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Icon(
-                    active ? Icons.bolt_rounded : Icons.circle_outlined,
-                    size: active ? 42 : 18,
-                    color: active ? const Color(0xFF092115) : Colors.white12,
-                  ),
+                  animation: _paceController,
+                  builder: (context, _) {
+                    final brightness = active ? 1 - _paceController.value : 0.0;
+                    final activeOpacity = 0.25 + (brightness * 0.75);
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: active
+                            ? _accent.withValues(alpha: activeOpacity)
+                            : const Color(0xFF123524),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: active
+                              ? _accent.withValues(
+                                  alpha: 0.35 + (brightness * 0.65),
+                                )
+                              : Colors.white12,
+                          width: 2,
+                        ),
+                        boxShadow: active
+                            ? [
+                                BoxShadow(
+                                  color: _accent.withValues(
+                                    alpha: brightness * 0.4,
+                                  ),
+                                  blurRadius: 18 * brightness,
+                                  spreadRadius: 2 * brightness,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Icon(
+                        active ? Icons.bolt_rounded : Icons.circle_outlined,
+                        size: active ? 42 : 18,
+                        color: active
+                            ? const Color(0xFF092115)
+                                  .withValues(alpha: 0.35 + (brightness * 0.65))
+                            : Colors.white12,
+                      ),
+                    );
+                  },
                 ),
               );
             },
@@ -1095,7 +1131,7 @@ class _TrainingInfo {
 _TrainingInfo _trainingInfo(TrainingAttribute attribute) => switch (attribute) {
   TrainingAttribute.pace => const _TrainingInfo(
     title: 'Hız',
-    instruction: 'Parlayan hedefe 1 saniye içinde dokun.',
+    instruction: 'Parlayan hedef sönmeden dokun.',
     icon: Icons.speed_rounded,
   ),
   TrainingAttribute.shooting => const _TrainingInfo(

@@ -53,11 +53,10 @@ void main() {
       ),
     );
 
-    for (var index = 0; index < 22; index++) {
+    for (var index = 0; index < 50; index++) {
       await tester.tap(find.byKey(const Key('paceActiveTarget')));
-      await tester.pump(const Duration(milliseconds: 900));
+      await tester.pump(const Duration(milliseconds: 400));
     }
-    await tester.pump(const Duration(milliseconds: 250));
     await tester.pump();
 
     expect(find.text('Başarılı antrenman!'), findsOneWidget);
