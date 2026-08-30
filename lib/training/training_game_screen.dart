@@ -74,6 +74,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   bool _finished = false;
   bool? _lastSuccess;
   double _dribblePlayerX = 0.5;
+  double _dribbleTrackWidth = 0;
+  double _dribbleTrackHeight = 0;
   final List<_DribbleCone> _dribbleCones = [];
 
   @override
@@ -118,7 +120,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   _DribbleCone _newCone(double y) => _DribbleCone(
     x: 0.08 + (_random.nextDouble() * 0.84),
     y: y,
-    speed: 0.54 + (_random.nextDouble() * 0.16),
+    speed: 0.68 + (_random.nextDouble() * 0.16),
   );
 
   void _recycleCone(_DribbleCone cone) {
@@ -129,7 +131,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     cone
       ..x = 0.08 + (_random.nextDouble() * 0.84)
       ..y = min(-0.12, highestCone - 0.5)
-      ..speed = 0.54 + (_random.nextDouble() * 0.16);
+      ..speed = 0.68 + (_random.nextDouble() * 0.16);
   }
 
   void _updateDribblePhysics() {
@@ -145,11 +147,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     setState(() {
       for (final cone in _dribbleCones) {
         cone.y += cone.speed * deltaSeconds;
-        final hitsPlayer =
-            !collision &&
-            cone.y >= 0.73 &&
-            cone.y <= 0.88 &&
-            (cone.x - _dribblePlayerX).abs() < 0.14;
+        final hitsPlayer = !collision && _coneTouchesPlayer(cone);
         if (hitsPlayer) {
           collision = true;
           _lives--;
@@ -166,6 +164,23 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
 
     if (collision && _lives <= 0) _finish();
     if (!collision && !passedCone) return;
+  }
+
+  bool _coneTouchesPlayer(_DribbleCone cone) {
+    if (_dribbleTrackWidth <= 0 || _dribbleTrackHeight <= 0) return false;
+    const playerSize = 58.0;
+    const coneSize = 42.0;
+    final playerCenter = Offset(
+      (_dribblePlayerX * (_dribbleTrackWidth - playerSize)) + (playerSize / 2),
+      _dribbleTrackHeight - 30 - (playerSize / 2),
+    );
+    final coneCenter = Offset(
+      (cone.x * (_dribbleTrackWidth - coneSize)) + (coneSize / 2),
+      (cone.y * (_dribbleTrackHeight - coneSize)) + (coneSize / 2),
+    );
+    const contactDistance = 38.0;
+    return (coneCenter - playerCenter).distanceSquared <=
+        contactDistance * contactDistance;
   }
 
   void _nextChallenge({bool initial = false}) {
@@ -514,6 +529,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       builder: (context, constraints) {
         const playerSize = 58.0;
         const coneSize = 42.0;
+        _dribbleTrackWidth = constraints.maxWidth;
+        _dribbleTrackHeight = constraints.maxHeight;
         final playableWidth = max(1.0, constraints.maxWidth - playerSize);
         final coneWidth = max(1.0, constraints.maxWidth - coneSize);
         final playableHeight = max(1.0, constraints.maxHeight - coneSize);
