@@ -2,18 +2,47 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wonderkid/training/training_game_screen.dart';
 
+Future<List<Offset>> _passingPatternCenters(WidgetTester tester) async {
+  await tester.pump(const Duration(milliseconds: 2100));
+  await tester.pump();
+  final centers = <Offset>[];
+  for (var step = 0; step < 9; step++) {
+    final finder = find.byKey(Key('passingPatternStep$step'));
+    if (finder.evaluate().isEmpty) break;
+    centers.add(tester.getCenter(finder));
+  }
+  return centers;
+}
+
+Future<void> _drawPassingPattern(
+  WidgetTester tester,
+  List<Offset> centers,
+) async {
+  final gesture = await tester.startGesture(centers.first);
+  for (final center in centers.skip(1)) {
+    await gesture.moveTo(center);
+    await tester.pump(const Duration(milliseconds: 40));
+  }
+  await gesture.up();
+  await tester.pump();
+}
+
 void main() {
-  testWidgets('every attribute opens its own 20 second training game', (
-    tester,
-  ) async {
+  testWidgets('every attribute opens its own training game', (tester) async {
     for (final attribute in TrainingAttribute.values) {
       await tester.pumpWidget(
         MaterialApp(home: TrainingGameScreen(attribute: attribute)),
       );
 
       expect(find.byKey(const Key('trainingGameScreen')), findsOneWidget);
-      expect(find.byKey(const Key('trainingTimer')), findsOneWidget);
-      expect(find.text('20 sn'), findsOneWidget);
+      if (attribute == TrainingAttribute.passing) {
+        expect(find.byKey(const Key('passingStatus')), findsOneWidget);
+        expect(find.byKey(const Key('trainingTimer')), findsNothing);
+        expect(find.text('20 sn'), findsNothing);
+      } else {
+        expect(find.byKey(const Key('trainingTimer')), findsOneWidget);
+        expect(find.text('20 sn'), findsOneWidget);
+      }
       expect(find.byKey(const Key('trainingLives')), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
@@ -202,6 +231,51 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.text('DIŞARI'), findsOneWidget);
+  });
+
+  testWidgets('passing has no timer and completes after four patterns', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(attribute: TrainingAttribute.passing),
+      ),
+    );
+
+    expect(find.text('DESENİ İZLE'), findsOneWidget);
+    expect(find.byKey(const Key('trainingTimer')), findsNothing);
+    await tester.pump(const Duration(seconds: 30));
+    await tester.pump();
+    expect(find.byKey(const Key('trainingResult')), findsNothing);
+    expect(find.text('SIRA SENDE'), findsOneWidget);
+
+    for (var round = 0; round < 4; round++) {
+      final centers = await _passingPatternCenters(tester);
+      expect(centers.length, inInclusiveRange(5, 9));
+      expect(find.text('SIRA SENDE'), findsOneWidget);
+      await _drawPassingPattern(tester, centers);
+    }
+
+    expect(find.byKey(const Key('trainingResult')), findsOneWidget);
+    expect(find.text('Başarılı antrenman!'), findsOneWidget);
+    expect(find.textContaining('4 doğru hamle'), findsOneWidget);
+  });
+
+  testWidgets('passing loses a life for an incomplete pattern', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(attribute: TrainingAttribute.passing),
+      ),
+    );
+
+    for (var attempt = 0; attempt < 3; attempt++) {
+      final centers = await _passingPatternCenters(tester);
+      await _drawPassingPattern(tester, centers.take(2).toList());
+    }
+
+    expect(find.byKey(const Key('trainingResult')), findsOneWidget);
+    expect(find.text('3 hakkın da bitti.'), findsOneWidget);
+    expect(find.textContaining('Gelişim kazanamadın'), findsOneWidget);
   });
 
   testWidgets('dribbling player follows horizontal drag without lane taps', (

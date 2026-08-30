@@ -67,6 +67,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   Timer? _timer;
   Timer? _paceTickTimer;
   Timer? _dribbleTimer;
+  Timer? _passingPreviewTimer;
   DateTime? _lastDribbleTick;
   int _secondsLeft = _duration;
   int _lives = 3;
@@ -89,6 +90,12 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   double _dribbleInvulnerability = 0;
   int _dribbleWave = 0;
   final List<_DribbleCone> _dribbleCones = [];
+  List<int> _passingPattern = [];
+  final List<int> _passingInput = [];
+  int _passingRevealStep = 0;
+  bool _passingShowingPattern = false;
+  bool _passingLocked = false;
+  Offset? _passingPointer;
 
   @override
   void initState() {
@@ -108,10 +115,12 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _startTimer();
     _startPaceChallenge();
     _startDribblePhysics();
+    _startPassingPattern(initial: true);
   }
 
   void _startTimer() {
     _timer?.cancel();
+    if (widget.attribute == TrainingAttribute.passing) return;
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || _finished) return;
       if (_secondsLeft <= 1) {
@@ -121,6 +130,123 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
         setState(() => _secondsLeft--);
       }
     });
+  }
+
+  void _startPassingPattern({bool initial = false}) {
+    if (widget.attribute != TrainingAttribute.passing || _finished) return;
+    _passingPreviewTimer?.cancel();
+    final pattern = _generatePassingPattern(5 + _random.nextInt(5));
+
+    void resetPattern() {
+      _passingPattern = pattern;
+      _passingInput.clear();
+      _passingPointer = null;
+      _passingRevealStep = 1;
+      _passingShowingPattern = true;
+      _passingLocked = true;
+    }
+
+    if (initial) {
+      resetPattern();
+    } else {
+      setState(resetPattern);
+    }
+
+    final stepDuration = Duration(
+      milliseconds: (2000 / pattern.length).round(),
+    );
+    _passingPreviewTimer = Timer.periodic(stepDuration, (timer) {
+      if (!mounted || _finished) {
+        timer.cancel();
+        return;
+      }
+      if (_passingRevealStep >= _passingPattern.length) {
+        timer.cancel();
+        setState(() {
+          _passingShowingPattern = false;
+          _passingLocked = false;
+          _passingRevealStep = 0;
+        });
+      } else {
+        setState(() => _passingRevealStep++);
+      }
+    });
+  }
+
+  void _recordPassingPoint(Offset position, Size size) {
+    if (_finished || _passingLocked || _passingShowingPattern) return;
+    final node = _passingNodeAt(position, size);
+    setState(() {
+      _passingPointer = position;
+      if (node != null && !_passingInput.contains(node)) {
+        if (_passingInput.isNotEmpty) {
+          final midpoint = _passingMidpoint(_passingInput.last, node);
+          if (midpoint != null && !_passingInput.contains(midpoint)) {
+            _passingInput.add(midpoint);
+          }
+        }
+        _passingInput.add(node);
+      }
+    });
+  }
+
+  List<int> _generatePassingPattern(int targetLength) {
+    final pattern = <int>[_random.nextInt(9)];
+    while (pattern.length < targetLength) {
+      final candidates = List<int>.generate(9, (index) => index)
+        ..removeWhere(pattern.contains)
+        ..shuffle(_random);
+      var added = false;
+      for (final candidate in candidates) {
+        final midpoint = _passingMidpoint(pattern.last, candidate);
+        final needsMidpoint = midpoint != null && !pattern.contains(midpoint);
+        final requiredSlots = needsMidpoint ? 2 : 1;
+        if (pattern.length + requiredSlots > targetLength) continue;
+        if (needsMidpoint) pattern.add(midpoint);
+        pattern.add(candidate);
+        added = true;
+        break;
+      }
+      if (!added) {
+        return _generatePassingPattern(targetLength);
+      }
+    }
+    return pattern;
+  }
+
+  void _submitPassingPattern() {
+    if (_finished || _passingLocked || _passingInput.isEmpty) return;
+    final success =
+        _passingInput.length == _passingPattern.length &&
+        List.generate(
+          _passingPattern.length,
+          (index) => _passingInput[index] == _passingPattern[index],
+        ).every((matches) => matches);
+    setState(() {
+      _passingLocked = true;
+      _passingPointer = null;
+      _lastSuccess = success;
+      if (success) {
+        _score++;
+      } else {
+        _lives--;
+      }
+    });
+
+    if (_score >= 4 || _lives <= 0) {
+      _finish();
+    } else {
+      _startPassingPattern();
+    }
+  }
+
+  int? _passingNodeAt(Offset position, Size size) {
+    final centers = _passingCenters(size);
+    final hitRadius = min(size.width, size.height) * 0.11;
+    for (var index = 0; index < centers.length; index++) {
+      if ((position - centers[index]).distance <= hitRadius) return index;
+    }
+    return null;
   }
 
   void _startDribblePhysics() {
@@ -423,6 +549,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _timer?.cancel();
     _paceTickTimer?.cancel();
     _dribbleTimer?.cancel();
+    _passingPreviewTimer?.cancel();
     _meterController.stop();
     _shotController.stop();
     setState(() => _finished = true);
@@ -440,6 +567,12 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       _shotFeedback = null;
       _shotAim = 0;
       _shotPower = 0;
+      _passingPattern = [];
+      _passingInput.clear();
+      _passingRevealStep = 0;
+      _passingShowingPattern = false;
+      _passingLocked = false;
+      _passingPointer = null;
       _nextChallenge(initial: true);
     });
     _meterController.repeat(reverse: true);
@@ -447,21 +580,26 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _startTimer();
     _startPaceChallenge();
     _startDribblePhysics();
+    _startPassingPattern(initial: true);
   }
 
   TrainingResult get _result {
-    final grade = switch (_score) {
-      >= 18 => 'S',
-      >= 14 => 'A',
-      >= 10 => 'B',
-      >= 5 => 'C',
-      _ => 'D',
-    };
+    final grade = widget.attribute == TrainingAttribute.passing
+        ? (_score >= 4 ? 'A' : 'D')
+        : switch (_score) {
+            >= 18 => 'S',
+            >= 14 => 'A',
+            >= 10 => 'B',
+            >= 5 => 'C',
+            _ => 'D',
+          };
     return TrainingResult(
       attribute: widget.attribute,
       score: _score,
       grade: grade,
-      isSuccessful: _secondsLeft == 0 && _lives > 0,
+      isSuccessful: widget.attribute == TrainingAttribute.passing
+          ? _score >= 4 && _lives > 0
+          : _secondsLeft == 0 && _lives > 0,
       statIncrease: widget.statIncrease,
     );
   }
@@ -471,6 +609,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _timer?.cancel();
     _paceTickTimer?.cancel();
     _dribbleTimer?.cancel();
+    _passingPreviewTimer?.cancel();
     _meterController.dispose();
     _shotController.dispose();
     super.dispose();
@@ -517,11 +656,20 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       children: [
         Row(
           children: [
-            _CounterPill(
-              key: const Key('trainingTimer'),
-              icon: Icons.timer_outlined,
-              text: '$_secondsLeft sn',
-            ),
+            if (widget.attribute == TrainingAttribute.passing)
+              _CounterPill(
+                key: const Key('passingStatus'),
+                icon: _passingShowingPattern
+                    ? Icons.visibility_rounded
+                    : Icons.gesture_rounded,
+                text: _passingShowingPattern ? 'DESENİ İZLE' : 'SIRA SENDE',
+              )
+            else
+              _CounterPill(
+                key: const Key('trainingTimer'),
+                icon: Icons.timer_outlined,
+                text: '$_secondsLeft sn',
+              ),
             const Spacer(),
             Row(
               key: const Key('trainingLives'),
@@ -542,7 +690,12 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
               ),
             ),
             const SizedBox(width: 12),
-            _CounterPill(icon: Icons.stars_rounded, text: '$_score'),
+            _CounterPill(
+              icon: Icons.stars_rounded,
+              text: widget.attribute == TrainingAttribute.passing
+                  ? '$_score/4'
+                  : '$_score',
+            ),
           ],
         ),
         const SizedBox(height: 22),
@@ -814,56 +967,69 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   Widget _passingGame() {
-    const alignments = [
-      Alignment(-0.75, -0.7),
-      Alignment(0.75, -0.55),
-      Alignment(-0.65, 0.65),
-      Alignment(0.68, 0.72),
-    ];
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D492D),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Stack(
-        children: [
-          const Center(
-            child: Icon(
-              Icons.sports_soccer_rounded,
-              color: Colors.white24,
-              size: 42,
-            ),
-          ),
-          for (var index = 0; index < alignments.length; index++)
-            Align(
-              alignment: alignments[index],
-              child: InkWell(
-                key: Key('passingTarget$index'),
-                onTap: () => _answer(index == _target),
-                borderRadius: BorderRadius.circular(40),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 120),
-                  width: index == _target ? 72 : 62,
-                  height: index == _target ? 72 : 62,
+    return Center(
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final size = Size(constraints.maxWidth, constraints.maxHeight);
+            final centers = _passingCenters(size);
+            final activePattern = _passingShowingPattern
+                ? _passingPattern.take(_passingRevealStep).toList()
+                : List<int>.from(_passingInput);
+            final markerSize = min(size.width, size.height) * 0.20;
+            return GestureDetector(
+              key: const Key('passingPatternBoard'),
+              behavior: HitTestBehavior.opaque,
+              onPanStart: (details) =>
+                  _recordPassingPoint(details.localPosition, size),
+              onPanUpdate: (details) =>
+                  _recordPassingPoint(details.localPosition, size),
+              onPanEnd: (_) => _submitPassingPattern(),
+              onPanCancel: () {
+                if (mounted) setState(() => _passingPointer = null);
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Container(
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: index == _target ? _accent : const Color(0xFF123524),
-                    border: Border.all(
-                      color: index == _target ? _accent : Colors.white24,
-                      width: 2,
-                    ),
+                    color: const Color(0xFF0D492D),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white12),
                   ),
-                  child: Icon(
-                    Icons.person_rounded,
-                    color: index == _target
-                        ? const Color(0xFF092115)
-                        : Colors.white60,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _PassingPatternPainter(
+                            selectedNodes: activePattern,
+                            pointer: _passingShowingPattern
+                                ? null
+                                : _passingPointer,
+                            preview: _passingShowingPattern,
+                          ),
+                        ),
+                      ),
+                      for (var index = 0; index < centers.length; index++)
+                        Positioned(
+                          key: _passingPattern.contains(index)
+                              ? Key(
+                                  'passingPatternStep${_passingPattern.indexOf(index)}',
+                                )
+                              : Key('passingNode$index'),
+                          left: centers[index].dx - (markerSize / 2),
+                          top: centers[index].dy - (markerSize / 2),
+                          width: markerSize,
+                          height: markerSize,
+                          child: const IgnorePointer(child: SizedBox.expand()),
+                        ),
+                    ],
                   ),
                 ),
               ),
-            ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -1065,6 +1231,120 @@ class _PaceTarget {
   final double duration;
   double elapsed = 0;
   bool spawnedNext = false;
+}
+
+List<Offset> _passingCenters(Size size) {
+  const positions = [0.19, 0.5, 0.81];
+  return [
+    for (final y in positions)
+      for (final x in positions) Offset(size.width * x, size.height * y),
+  ];
+}
+
+int? _passingMidpoint(int from, int to) {
+  final fromRow = from ~/ 3;
+  final fromColumn = from % 3;
+  final toRow = to ~/ 3;
+  final toColumn = to % 3;
+  if ((fromRow + toRow).isOdd || (fromColumn + toColumn).isOdd) return null;
+  final middleRow = (fromRow + toRow) ~/ 2;
+  final middleColumn = (fromColumn + toColumn) ~/ 2;
+  final midpoint = (middleRow * 3) + middleColumn;
+  return midpoint == from || midpoint == to ? null : midpoint;
+}
+
+class _PassingPatternPainter extends CustomPainter {
+  const _PassingPatternPainter({
+    required this.selectedNodes,
+    required this.pointer,
+    required this.preview,
+  });
+
+  final List<int> selectedNodes;
+  final Offset? pointer;
+  final bool preview;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centers = _passingCenters(size);
+    final radius = min(size.width, size.height) * 0.075;
+    final activeColor = preview
+        ? const Color(0xFF47C8FF)
+        : const Color(0xFFC8FF4D);
+    final linePaint = Paint()
+      ..color = activeColor.withValues(alpha: 0.9)
+      ..strokeWidth = 7
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    for (var index = 1; index < selectedNodes.length; index++) {
+      canvas.drawLine(
+        centers[selectedNodes[index - 1]],
+        centers[selectedNodes[index]],
+        linePaint,
+      );
+    }
+    if (pointer != null && selectedNodes.isNotEmpty) {
+      canvas.drawLine(
+        centers[selectedNodes.last],
+        pointer!,
+        linePaint..color = activeColor.withValues(alpha: 0.45),
+      );
+    }
+
+    for (var index = 0; index < centers.length; index++) {
+      final selectedOrder = selectedNodes.indexOf(index);
+      final isSelected = selectedOrder >= 0;
+      canvas.drawCircle(
+        centers[index],
+        radius,
+        Paint()
+          ..color = isSelected
+              ? activeColor.withValues(alpha: 0.15)
+              : Colors.white.withValues(alpha: 0.035)
+          ..style = PaintingStyle.fill,
+      );
+      canvas.drawCircle(
+        centers[index],
+        radius,
+        Paint()
+          ..color = isSelected ? activeColor : Colors.white54
+          ..strokeWidth = isSelected ? 3 : 2
+          ..style = PaintingStyle.stroke,
+      );
+      canvas.drawCircle(
+        centers[index],
+        radius * 0.30,
+        Paint()
+          ..color = isSelected ? activeColor : Colors.white70
+          ..style = PaintingStyle.fill,
+      );
+      if (isSelected) {
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: '${selectedOrder + 1}',
+            style: const TextStyle(
+              color: Color(0xFF092115),
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        textPainter.paint(
+          canvas,
+          centers[index] -
+              Offset(textPainter.width / 2, textPainter.height / 2),
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PassingPatternPainter oldDelegate) =>
+      oldDelegate.selectedNodes != selectedNodes ||
+      oldDelegate.pointer != pointer ||
+      oldDelegate.preview != preview;
 }
 
 enum _ShotOutcome { weak, goal, over, wide }
@@ -1311,6 +1591,8 @@ class _ResultView extends StatelessWidget {
         Text(
           result.isSuccessful
               ? 'Başarılı antrenman!'
+              : result.attribute == TrainingAttribute.passing
+              ? '3 hakkın da bitti.'
               : 'Süre dolmadan 3 hakkın da bitti.',
           style: TextStyle(
             color: result.isSuccessful
@@ -1435,7 +1717,7 @@ _TrainingInfo _trainingInfo(TrainingAttribute attribute) => switch (attribute) {
   ),
   TrainingAttribute.passing => const _TrainingInfo(
     title: 'Pas',
-    instruction: 'Parlayan takım arkadaşına pas ver.',
+    instruction: 'Deseni izle, sonra aynı sırayla çiz. 4 deseni tamamla.',
     icon: Icons.route_rounded,
   ),
   TrainingAttribute.dribbling => const _TrainingInfo(
