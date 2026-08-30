@@ -359,7 +359,7 @@ class _TrainingTab extends StatelessWidget {
             value: 'SINIRSIZ',
             subtitle: trainedThisWeek
                 ? 'Bu haftaki antrenmanını tamamladın • Test modu açık'
-                : 'Test modu • 15 saniye • 3 hata hakkı',
+                : 'Test modu • 20 saniye • 3 hata hakkı',
           ),
           const SizedBox(height: 18),
           const _SectionTitle(title: 'ANTRENMANINI SEÇ'),

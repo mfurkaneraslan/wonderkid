@@ -60,7 +60,7 @@ class TrainingGameScreen extends StatefulWidget {
 class _TrainingGameScreenState extends State<TrainingGameScreen>
     with SingleTickerProviderStateMixin {
   static const _accent = Color(0xFFC8FF4D);
-  static const _duration = 15;
+  static const _duration = 20;
   final Random _random = Random();
   late final AnimationController _meterController;
   Timer? _timer;
@@ -76,6 +76,10 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   double _dribblePlayerX = 0.5;
   double _dribbleTrackWidth = 0;
   double _dribbleTrackHeight = 0;
+  double _dribbleElapsed = 0;
+  double _dribbleSpawnElapsed = 0;
+  double _dribbleInvulnerability = 0;
+  int _dribbleWave = 0;
   final List<_DribbleCone> _dribbleCones = [];
 
   @override
@@ -107,9 +111,12 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     if (widget.attribute != TrainingAttribute.dribbling) return;
     _dribbleTimer?.cancel();
     _dribblePlayerX = 0.5;
-    _dribbleCones
-      ..clear()
-      ..addAll([_newCone(-0.08), _newCone(-0.62), _newCone(-1.16)]);
+    _dribbleElapsed = 0;
+    _dribbleSpawnElapsed = 0;
+    _dribbleInvulnerability = 0;
+    _dribbleWave = 0;
+    _dribbleCones.clear();
+    _spawnDribbleWave(initial: true);
     _lastDribbleTick = DateTime.now();
     _dribbleTimer = Timer.periodic(
       const Duration(milliseconds: 16),
@@ -117,53 +124,76 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     );
   }
 
-  _DribbleCone _newCone(double y) => _DribbleCone(
-    x: 0.08 + (_random.nextDouble() * 0.84),
-    y: y,
-    speed: 0.68 + (_random.nextDouble() * 0.16),
-  );
-
-  void _recycleCone(_DribbleCone cone) {
-    final highestCone = _dribbleCones.fold<double>(
-      0,
-      (highest, item) => min(highest, item.y),
-    );
-    cone
-      ..x = 0.08 + (_random.nextDouble() * 0.84)
-      ..y = min(-0.12, highestCone - 0.5)
-      ..speed = 0.68 + (_random.nextDouble() * 0.16);
+  void _spawnDribbleWave({bool initial = false}) {
+    final count = initial
+        ? 1
+        : switch (_dribbleElapsed) {
+            < 6 => 1,
+            < 13 => _dribbleWave.isEven ? 2 : 1,
+            _ => _dribbleWave % 3 == 0 ? 3 : 2,
+          };
+    final positions = switch (count) {
+      1 => [0.08 + (_random.nextDouble() * 0.84)],
+      2 => [
+        0.14 + (_random.nextDouble() * 0.12),
+        0.74 + (_random.nextDouble() * 0.12),
+      ],
+      _ => [
+        0.08 + (_random.nextDouble() * 0.05),
+        0.47 + (_random.nextDouble() * 0.06),
+        0.87 + (_random.nextDouble() * 0.05),
+      ],
+    };
+    for (final x in positions) {
+      _dribbleCones.add(
+        _DribbleCone(x: x, y: -0.12, speed: 0.6 + (_random.nextDouble() * 0.1)),
+      );
+    }
+    _dribbleWave++;
   }
 
   void _updateDribblePhysics() {
-    if (!mounted || _finished || _dribbleCones.isEmpty) return;
+    if (!mounted || _finished) return;
     final now = DateTime.now();
     final previous = _lastDribbleTick ?? now;
     _lastDribbleTick = now;
     final deltaSeconds = (now.difference(previous).inMicroseconds / 1000000)
         .clamp(0.0, 0.05);
+    _dribbleElapsed += deltaSeconds;
+    _dribbleSpawnElapsed += deltaSeconds;
+    _dribbleInvulnerability = max(0, _dribbleInvulnerability - deltaSeconds);
+    final speedMultiplier = 1 + ((_dribbleElapsed / _duration) * 0.8);
+    final spawnInterval = 1.5 - ((_dribbleElapsed / _duration) * 0.75);
     var collision = false;
-    var passedCone = false;
+    final removedCones = <_DribbleCone>[];
 
     setState(() {
       for (final cone in _dribbleCones) {
-        cone.y += cone.speed * deltaSeconds;
-        final hitsPlayer = !collision && _coneTouchesPlayer(cone);
+        cone.y += cone.speed * speedMultiplier * deltaSeconds;
+        final hitsPlayer =
+            !collision &&
+            _dribbleInvulnerability <= 0 &&
+            _coneTouchesPlayer(cone);
         if (hitsPlayer) {
           collision = true;
           _lives--;
           _lastSuccess = false;
-          _recycleCone(cone);
+          _dribbleInvulnerability = 0.45;
+          removedCones.add(cone);
         } else if (cone.y > 1.08) {
-          passedCone = true;
           _score++;
           _lastSuccess = true;
-          _recycleCone(cone);
+          removedCones.add(cone);
         }
+      }
+      _dribbleCones.removeWhere(removedCones.contains);
+      if (_dribbleSpawnElapsed >= spawnInterval) {
+        _dribbleSpawnElapsed = 0;
+        _spawnDribbleWave();
       }
     });
 
     if (collision && _lives <= 0) _finish();
-    if (!collision && !passedCone) return;
   }
 
   bool _coneTouchesPlayer(_DribbleCone cone) {
@@ -263,7 +293,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       attribute: widget.attribute,
       score: _score,
       grade: grade,
-      isSuccessful: _score >= 5,
+      isSuccessful: _secondsLeft == 0 && _lives > 0,
       statIncrease: widget.statIncrease,
     );
   }
@@ -867,7 +897,7 @@ class _ResultView extends StatelessWidget {
         Text(
           result.isSuccessful
               ? 'Başarılı antrenman!'
-              : 'Başarı için en az 5 doğru hamle gerekiyor.',
+              : 'Süre dolmadan 3 hakkın da bitti.',
           style: TextStyle(
             color: result.isSuccessful
                 ? const Color(0xFFC8FF4D)
