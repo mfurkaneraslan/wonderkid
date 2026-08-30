@@ -27,7 +27,8 @@ class CareerProfile {
     const overall = 67;
     final modifiers = _attributeModifiers[position] ?? const [0, 0, 0, 0, 0, 0];
 
-    int attribute(int index) => (overall + modifiers[index]).clamp(20, 85);
+    double attribute(int index) =>
+        (overall + modifiers[index]).clamp(20, 85).toDouble();
 
     return CareerProfile(
       name: name,
@@ -56,12 +57,12 @@ class CareerProfile {
       avatarId: json['avatarId'] as int,
       age: json['age'] as int,
       overall: json['overall'] as int,
-      pace: json['pace'] as int,
-      shooting: json['shooting'] as int,
-      passing: json['passing'] as int,
-      dribbling: json['dribbling'] as int,
-      defending: json['defending'] as int,
-      physical: json['physical'] as int,
+      pace: (json['pace'] as num).toDouble(),
+      shooting: (json['shooting'] as num).toDouble(),
+      passing: (json['passing'] as num).toDouble(),
+      dribbling: (json['dribbling'] as num).toDouble(),
+      defending: (json['defending'] as num).toDouble(),
+      physical: (json['physical'] as num).toDouble(),
       seed: json['seed'] as int,
     );
   }
@@ -88,15 +89,20 @@ class CareerProfile {
   final int avatarId;
   final int age;
   final int overall;
-  final int pace;
-  final int shooting;
-  final int passing;
-  final int dribbling;
-  final int defending;
-  final int physical;
+  final double pace;
+  final double shooting;
+  final double passing;
+  final double dribbling;
+  final double defending;
+  final double physical;
   final int seed;
 
   CareerProfile increaseAttribute(String attribute) {
+    double increased(double value) {
+      final next = value + trainingIncrement(value);
+      return ((next.clamp(0, 99)) * 100).roundToDouble() / 100;
+    }
+
     return CareerProfile(
       name: name,
       nationality: nationality,
@@ -105,14 +111,30 @@ class CareerProfile {
       avatarId: avatarId,
       age: age,
       overall: overall,
-      pace: pace + (attribute == 'pace' ? 1 : 0),
-      shooting: shooting + (attribute == 'shooting' ? 1 : 0),
-      passing: passing + (attribute == 'passing' ? 1 : 0),
-      dribbling: dribbling + (attribute == 'dribbling' ? 1 : 0),
-      defending: defending + (attribute == 'defending' ? 1 : 0),
-      physical: physical + (attribute == 'physical' ? 1 : 0),
+      pace: attribute == 'pace' ? increased(pace) : pace,
+      shooting: attribute == 'shooting' ? increased(shooting) : shooting,
+      passing: attribute == 'passing' ? increased(passing) : passing,
+      dribbling: attribute == 'dribbling' ? increased(dribbling) : dribbling,
+      defending: attribute == 'defending' ? increased(defending) : defending,
+      physical: attribute == 'physical' ? increased(physical) : physical,
       seed: seed,
     );
+  }
+
+  double attributeValue(String attribute) => switch (attribute) {
+    'pace' => pace,
+    'shooting' => shooting,
+    'passing' => passing,
+    'dribbling' => dribbling,
+    'defending' => defending,
+    'physical' => physical,
+    _ => throw ArgumentError.value(attribute, 'attribute'),
+  };
+
+  static double trainingIncrement(double currentValue) {
+    if (currentValue >= 90) return 0.33;
+    if (currentValue >= 80) return 0.5;
+    return 1;
   }
 
   String get avatarAssetPath => 'assets/players/avatar_$avatarId.webp';
@@ -142,4 +164,11 @@ class CareerProfile {
     }
     return hash;
   }
+}
+
+String formatCareerAttribute(num value) {
+  final rounded = (value.toDouble() * 100).round() / 100;
+  if (rounded == rounded.truncateToDouble()) return rounded.toInt().toString();
+  final source = rounded.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '');
+  return source.replaceFirst('.', ',');
 }

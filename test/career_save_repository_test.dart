@@ -51,4 +51,15 @@ void main() {
       offer.competitors.map((player) => player.id),
     );
   });
+
+  test('training gains slow down after 80 and 90', () {
+    expect(CareerProfile.trainingIncrement(79), 1);
+    expect(CareerProfile.trainingIncrement(80), 0.5);
+    expect(CareerProfile.trainingIncrement(89.99), 0.5);
+    expect(CareerProfile.trainingIncrement(90), 0.33);
+    expect(CareerProfile.trainingIncrement(98), 0.33);
+    expect(formatCareerAttribute(80), '80');
+    expect(formatCareerAttribute(80.5), '80,5');
+    expect(formatCareerAttribute(90.33), '90,33');
+  });
 }

@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../career/career_profile.dart';
+
 enum TrainingAttribute {
   pace,
   shooting,
@@ -29,18 +31,25 @@ class TrainingResult {
     required this.score,
     required this.grade,
     required this.isSuccessful,
+    required this.statIncrease,
   });
 
   final TrainingAttribute attribute;
   final int score;
   final String grade;
   final bool isSuccessful;
+  final double statIncrease;
 }
 
 class TrainingGameScreen extends StatefulWidget {
-  const TrainingGameScreen({super.key, required this.attribute});
+  const TrainingGameScreen({
+    super.key,
+    required this.attribute,
+    this.statIncrease = 1,
+  });
 
   final TrainingAttribute attribute;
+  final double statIncrease;
 
   @override
   State<TrainingGameScreen> createState() => _TrainingGameScreenState();
@@ -164,6 +173,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       score: _score,
       grade: grade,
       isSuccessful: _score >= 5,
+      statIncrease: widget.statIncrease,
     );
   }
 
@@ -629,7 +639,7 @@ class _ResultView extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           result.isSuccessful
-              ? '${result.score} doğru hamle  •  ${result.attribute.turkishLabel} +1'
+              ? '${result.score} doğru hamle  •  ${result.attribute.turkishLabel} +${formatCareerAttribute(result.statIncrease)}'
               : '${result.score} doğru hamle  •  Gelişim kazanamadın',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.55),

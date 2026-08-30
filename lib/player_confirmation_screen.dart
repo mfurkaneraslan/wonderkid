@@ -332,7 +332,7 @@ class _StatLine extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          '${stat.value}',
+          formatCareerAttribute(stat.value),
           style: const TextStyle(
             color: Color(0xFF2B1803),
             fontSize: 17,
@@ -357,5 +357,5 @@ class _CardStat {
   const _CardStat(this.label, this.value);
 
   final String label;
-  final int value;
+  final double value;
 }

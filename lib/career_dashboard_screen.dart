@@ -32,7 +32,6 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
   int _selectedIndex = 0;
   late CareerProfile _profile;
   late int? _lastTrainingWeek;
-  late String? _lastTrainingAttribute;
   late final CareerSeasonFixture _fixture;
 
   @override
@@ -40,7 +39,6 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
     super.initState();
     _profile = widget.profile;
     _lastTrainingWeek = widget.lastTrainingWeek;
-    _lastTrainingAttribute = widget.lastTrainingAttribute;
     _fixture = CareerFixtureGenerator.generate(
       league: widget.offer.league,
       club: widget.offer.club,
@@ -79,9 +77,14 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
   }
 
   Future<void> _openTraining(TrainingAttribute attribute) async {
+    final currentValue = _profile.attributeValue(attribute.name);
+    final statIncrease = CareerProfile.trainingIncrement(currentValue);
     final result = await Navigator.of(context).push<TrainingResult>(
       MaterialPageRoute<TrainingResult>(
-        builder: (_) => TrainingGameScreen(attribute: attribute),
+        builder: (_) => TrainingGameScreen(
+          attribute: attribute,
+          statIncrease: statIncrease,
+        ),
       ),
     );
     if (!mounted || result == null) return;
@@ -91,7 +94,6 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
     setState(() {
       _profile = updatedProfile;
       _lastTrainingWeek = widget.currentWeek;
-      _lastTrainingAttribute = attribute.name;
     });
     await CareerSaveRepository.save(
       profile: updatedProfile,
@@ -102,7 +104,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
     );
     if (!mounted) return;
     final message = result.isSuccessful
-        ? '${attribute.turkishLabel} özelliğin 1 puan arttı.'
+        ? '${attribute.turkishLabel} özelliğin ${formatCareerAttribute(statIncrease)} puan arttı.'
         : 'Antrenman tamamlandı ancak özellik puanı kazanamadın.';
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -129,7 +131,6 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
         profile: _profile,
         currentWeek: widget.currentWeek,
         lastTrainingWeek: _lastTrainingWeek,
-        lastTrainingAttribute: _lastTrainingAttribute,
         onStartTraining: _openTraining,
       ),
       _TeamTab(
@@ -335,30 +336,17 @@ class _TrainingTab extends StatelessWidget {
     required this.profile,
     required this.currentWeek,
     required this.lastTrainingWeek,
-    required this.lastTrainingAttribute,
     required this.onStartTraining,
   });
 
   final CareerProfile profile;
   final int currentWeek;
   final int? lastTrainingWeek;
-  final String? lastTrainingAttribute;
   final ValueChanged<TrainingAttribute> onStartTraining;
 
   @override
   Widget build(BuildContext context) {
     final trainedThisWeek = lastTrainingWeek == currentWeek;
-    bool unavailable(TrainingAttribute attribute) {
-      if (trainedThisWeek) return true;
-      return lastTrainingWeek == currentWeek - 1 &&
-          lastTrainingAttribute == attribute.name;
-    }
-
-    String? lockMessage(TrainingAttribute attribute) {
-      if (trainedThisWeek) return 'Bu haftaki hakkını kullandın';
-      if (unavailable(attribute)) return 'Geçen hafta bu statı çalıştın';
-      return null;
-    }
 
     return _PageFrame(
       child: ListView(
@@ -366,11 +354,11 @@ class _TrainingTab extends StatelessWidget {
         children: [
           _StatusBanner(
             icon: Icons.bolt_rounded,
-            title: 'HAFTALIK ANTRENMAN',
-            value: trainedThisWeek ? '1/1' : '0/1',
+            title: 'ANTRENMAN HAKKI',
+            value: 'SINIRSIZ',
             subtitle: trainedThisWeek
-                ? 'Bu haftaki antrenmanın tamamlandı'
-                : '15 saniye • 3 hata hakkı',
+                ? 'Bu haftaki antrenmanını tamamladın • Test modu açık'
+                : 'Test modu • 15 saniye • 3 hata hakkı',
           ),
           const SizedBox(height: 18),
           const _SectionTitle(title: 'ANTRENMANINI SEÇ'),
@@ -380,10 +368,7 @@ class _TrainingTab extends StatelessWidget {
             icon: Icons.speed_rounded,
             title: 'Hız',
             detail: 'Sprint ritmini yakala',
-            lockMessage: lockMessage(TrainingAttribute.pace),
-            onTap: unavailable(TrainingAttribute.pace)
-                ? null
-                : () => onStartTraining(TrainingAttribute.pace),
+            onTap: () => onStartTraining(TrainingAttribute.pace),
           ),
           const SizedBox(height: 8),
           _TrainingCard(
@@ -391,10 +376,7 @@ class _TrainingTab extends StatelessWidget {
             icon: Icons.sports_soccer_rounded,
             title: 'Şut',
             detail: 'Kalede doğru köşeyi bul',
-            lockMessage: lockMessage(TrainingAttribute.shooting),
-            onTap: unavailable(TrainingAttribute.shooting)
-                ? null
-                : () => onStartTraining(TrainingAttribute.shooting),
+            onTap: () => onStartTraining(TrainingAttribute.shooting),
           ),
           const SizedBox(height: 8),
           _TrainingCard(
@@ -402,10 +384,7 @@ class _TrainingTab extends StatelessWidget {
             icon: Icons.route_rounded,
             title: 'Pas',
             detail: 'İşaretlenen oyuncuyu bul',
-            lockMessage: lockMessage(TrainingAttribute.passing),
-            onTap: unavailable(TrainingAttribute.passing)
-                ? null
-                : () => onStartTraining(TrainingAttribute.passing),
+            onTap: () => onStartTraining(TrainingAttribute.passing),
           ),
           const SizedBox(height: 8),
           _TrainingCard(
@@ -413,10 +392,7 @@ class _TrainingTab extends StatelessWidget {
             icon: Icons.multiple_stop_rounded,
             title: 'Dribbling',
             detail: 'Koniler arasından sıyrıl',
-            lockMessage: lockMessage(TrainingAttribute.dribbling),
-            onTap: unavailable(TrainingAttribute.dribbling)
-                ? null
-                : () => onStartTraining(TrainingAttribute.dribbling),
+            onTap: () => onStartTraining(TrainingAttribute.dribbling),
           ),
           const SizedBox(height: 8),
           _TrainingCard(
@@ -424,10 +400,7 @@ class _TrainingTab extends StatelessWidget {
             icon: Icons.shield_outlined,
             title: 'Defans',
             detail: 'Rakibin hamlesini karşıla',
-            lockMessage: lockMessage(TrainingAttribute.defending),
-            onTap: unavailable(TrainingAttribute.defending)
-                ? null
-                : () => onStartTraining(TrainingAttribute.defending),
+            onTap: () => onStartTraining(TrainingAttribute.defending),
           ),
           const SizedBox(height: 8),
           _TrainingCard(
@@ -435,10 +408,7 @@ class _TrainingTab extends StatelessWidget {
             icon: Icons.fitness_center_rounded,
             title: 'Fizik',
             detail: 'Güç göstergesini dengede tut',
-            lockMessage: lockMessage(TrainingAttribute.physical),
-            onTap: unavailable(TrainingAttribute.physical)
-                ? null
-                : () => onStartTraining(TrainingAttribute.physical),
+            onTap: () => onStartTraining(TrainingAttribute.physical),
           ),
           const SizedBox(height: 18),
           const _SectionTitle(title: 'MEVCUT ÖZELLİKLER'),
@@ -1492,20 +1462,18 @@ class _TrainingCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.detail,
-    this.onTap,
-    this.lockMessage,
+    required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String detail;
-  final VoidCallback? onTap;
-  final String? lockMessage;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: onTap == null ? 0.025 : 0.045),
+      color: Colors.white.withValues(alpha: 0.045),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -1525,12 +1493,7 @@ class _TrainingCard extends StatelessWidget {
                   color: const Color(0xFFC8FF4D).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(13),
                 ),
-                child: Icon(
-                  icon,
-                  color: onTap == null
-                      ? Colors.white30
-                      : const Color(0xFFC8FF4D),
-                ),
+                child: Icon(icon, color: const Color(0xFFC8FF4D)),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1543,11 +1506,9 @@ class _TrainingCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      lockMessage ?? detail,
+                      detail,
                       style: TextStyle(
-                        color: lockMessage == null
-                            ? Colors.white.withValues(alpha: 0.42)
-                            : const Color(0xFFFFC46B).withValues(alpha: 0.72),
+                        color: Colors.white.withValues(alpha: 0.42),
                         fontSize: 10,
                       ),
                     ),
@@ -1557,13 +1518,9 @@ class _TrainingCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Icon(
-                    onTap == null
-                        ? Icons.lock_outline_rounded
-                        : Icons.play_arrow_rounded,
-                    color: onTap == null
-                        ? Colors.white24
-                        : const Color(0xFFC8FF4D),
+                  const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Color(0xFFC8FF4D),
                   ),
                 ],
               ),
@@ -1668,7 +1625,10 @@ class _AttributeGrid extends StatelessWidget {
       ),
       itemBuilder: (context, index) {
         final attribute = attributes[index];
-        return _MetricTile(value: '${attribute.$2}', label: attribute.$1);
+        return _MetricTile(
+          value: formatCareerAttribute(attribute.$2),
+          label: attribute.$1,
+        );
       },
     );
   }

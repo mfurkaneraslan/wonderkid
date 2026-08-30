@@ -38,4 +38,29 @@ void main() {
     expect(find.byKey(const Key('retryTrainingButton')), findsOneWidget);
     expect(find.byKey(const Key('finishTrainingButton')), findsOneWidget);
   });
+
+  testWidgets('successful training shows the tiered stat reward', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(
+          attribute: TrainingAttribute.pace,
+          statIncrease: 0.5,
+        ),
+      ),
+    );
+
+    for (var index = 0; index < 3; index++) {
+      await tester.tap(find.byKey(const Key('paceLeftButton')));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.byKey(const Key('paceRightButton')));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.pump(const Duration(seconds: 15));
+    await tester.pump();
+
+    expect(find.text('Başarılı antrenman!'), findsOneWidget);
+    expect(find.textContaining('Hız +0,5'), findsOneWidget);
+  });
 }
