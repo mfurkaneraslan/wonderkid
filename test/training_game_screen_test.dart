@@ -63,4 +63,26 @@ void main() {
     expect(find.text('Başarılı antrenman!'), findsOneWidget);
     expect(find.textContaining('Hız +0,5'), findsOneWidget);
   });
+
+  testWidgets('dribbling player follows horizontal drag without lane taps', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(attribute: TrainingAttribute.dribbling),
+      ),
+    );
+
+    final player = find.byKey(const Key('dribblingPlayer'));
+    final before = tester.getCenter(player).dx;
+    await tester.drag(
+      find.byKey(const Key('dribblingDragArea')),
+      const Offset(90, 0),
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+    final after = tester.getCenter(player).dx;
+
+    expect(after, greaterThan(before));
+    expect(find.byKey(const Key('dribblingLane0')), findsNothing);
+  });
 }

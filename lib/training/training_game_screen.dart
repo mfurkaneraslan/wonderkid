@@ -46,10 +46,12 @@ class TrainingGameScreen extends StatefulWidget {
     super.key,
     required this.attribute,
     this.statIncrease = 1,
+    this.playerAvatarAsset,
   });
 
   final TrainingAttribute attribute;
   final double statIncrease;
+  final String? playerAvatarAsset;
 
   @override
   State<TrainingGameScreen> createState() => _TrainingGameScreenState();
@@ -62,6 +64,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   final Random _random = Random();
   late final AnimationController _meterController;
   Timer? _timer;
+  Timer? _dribbleTimer;
+  DateTime? _lastDribbleTick;
   int _secondsLeft = _duration;
   int _lives = 3;
   int _score = 0;
@@ -69,6 +73,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   bool _paceLeft = true;
   bool _finished = false;
   bool? _lastSuccess;
+  double _dribblePlayerX = 0.5;
+  final List<_DribbleCone> _dribbleCones = [];
 
   @override
   void initState() {
@@ -79,6 +85,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     )..repeat(reverse: true);
     _nextChallenge(initial: true);
     _startTimer();
+    _startDribblePhysics();
   }
 
   void _startTimer() {
@@ -92,6 +99,73 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
         setState(() => _secondsLeft--);
       }
     });
+  }
+
+  void _startDribblePhysics() {
+    if (widget.attribute != TrainingAttribute.dribbling) return;
+    _dribbleTimer?.cancel();
+    _dribblePlayerX = 0.5;
+    _dribbleCones
+      ..clear()
+      ..addAll([_newCone(-0.08), _newCone(-0.62), _newCone(-1.16)]);
+    _lastDribbleTick = DateTime.now();
+    _dribbleTimer = Timer.periodic(
+      const Duration(milliseconds: 16),
+      (_) => _updateDribblePhysics(),
+    );
+  }
+
+  _DribbleCone _newCone(double y) => _DribbleCone(
+    x: 0.08 + (_random.nextDouble() * 0.84),
+    y: y,
+    speed: 0.54 + (_random.nextDouble() * 0.16),
+  );
+
+  void _recycleCone(_DribbleCone cone) {
+    final highestCone = _dribbleCones.fold<double>(
+      0,
+      (highest, item) => min(highest, item.y),
+    );
+    cone
+      ..x = 0.08 + (_random.nextDouble() * 0.84)
+      ..y = min(-0.12, highestCone - 0.5)
+      ..speed = 0.54 + (_random.nextDouble() * 0.16);
+  }
+
+  void _updateDribblePhysics() {
+    if (!mounted || _finished || _dribbleCones.isEmpty) return;
+    final now = DateTime.now();
+    final previous = _lastDribbleTick ?? now;
+    _lastDribbleTick = now;
+    final deltaSeconds = (now.difference(previous).inMicroseconds / 1000000)
+        .clamp(0.0, 0.05);
+    var collision = false;
+    var passedCone = false;
+
+    setState(() {
+      for (final cone in _dribbleCones) {
+        cone.y += cone.speed * deltaSeconds;
+        final hitsPlayer =
+            !collision &&
+            cone.y >= 0.73 &&
+            cone.y <= 0.88 &&
+            (cone.x - _dribblePlayerX).abs() < 0.14;
+        if (hitsPlayer) {
+          collision = true;
+          _lives--;
+          _lastSuccess = false;
+          _recycleCone(cone);
+        } else if (cone.y > 1.08) {
+          passedCone = true;
+          _score++;
+          _lastSuccess = true;
+          _recycleCone(cone);
+        }
+      }
+    });
+
+    if (collision && _lives <= 0) _finish();
+    if (!collision && !passedCone) return;
   }
 
   void _nextChallenge({bool initial = false}) {
@@ -143,6 +217,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void _finish() {
     if (_finished) return;
     _timer?.cancel();
+    _dribbleTimer?.cancel();
     _meterController.stop();
     setState(() => _finished = true);
   }
@@ -158,6 +233,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     });
     _meterController.repeat(reverse: true);
     _startTimer();
+    _startDribblePhysics();
   }
 
   TrainingResult get _result {
@@ -180,6 +256,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   @override
   void dispose() {
     _timer?.cancel();
+    _dribbleTimer?.cancel();
     _meterController.dispose();
     super.dispose();
   }
@@ -433,55 +510,73 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   Widget _dribblingGame() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: List.generate(3, (index) {
-        final blocked = index == _target;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: index == 0 ? 0 : 5,
-              right: index == 2 ? 0 : 5,
-            ),
-            child: InkWell(
-              key: Key('dribblingLane$index'),
-              onTap: () => _answer(!blocked),
-              borderRadius: BorderRadius.circular(18),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: blocked
-                      ? const Color(0xFFFF5E72).withValues(alpha: 0.12)
-                      : _accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: blocked ? const Color(0xFFFF5E72) : Colors.white12,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const playerSize = 58.0;
+        const coneSize = 42.0;
+        final playableWidth = max(1.0, constraints.maxWidth - playerSize);
+        final coneWidth = max(1.0, constraints.maxWidth - coneSize);
+        final playableHeight = max(1.0, constraints.maxHeight - coneSize);
+        return GestureDetector(
+          key: const Key('dribblingDragArea'),
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragUpdate: (details) {
+            setState(() {
+              _dribblePlayerX =
+                  (_dribblePlayerX + (details.delta.dx / constraints.maxWidth))
+                      .clamp(0.0, 1.0);
+            });
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF0D492D),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(painter: const _DribbleTrackPainter()),
                   ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      blocked
-                          ? Icons.change_history_rounded
-                          : Icons.arrow_upward_rounded,
-                      color: blocked ? const Color(0xFFFF9A65) : _accent,
-                      size: 42,
+                  for (var index = 0; index < _dribbleCones.length; index++)
+                    Positioned(
+                      key: Key('dribblingCone$index'),
+                      left: _dribbleCones[index].x * coneWidth,
+                      top: _dribbleCones[index].y * playableHeight,
+                      child: const _ConeMarker(size: coneSize),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      blocked ? 'KONİ' : 'BOŞLUK',
-                      style: const TextStyle(
-                        fontSize: 10,
+                  Positioned(
+                    key: const Key('dribblingPlayer'),
+                    left: _dribblePlayerX * playableWidth,
+                    bottom: 30,
+                    child: _DribblePlayer(
+                      size: playerSize,
+                      avatarAsset: widget.playerAvatarAsset,
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 5,
+                    child: Text(
+                      'PARMAĞINI SAĞA • SOLA SÜRÜKLE',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.38),
+                        fontSize: 8,
                         fontWeight: FontWeight.w900,
+                        letterSpacing: 0.8,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
         );
-      }),
+      },
     );
   }
 
@@ -600,6 +695,111 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       ],
     );
   }
+}
+
+class _DribbleCone {
+  _DribbleCone({required this.x, required this.y, required this.speed});
+
+  double x;
+  double y;
+  double speed;
+}
+
+class _ConeMarker extends StatelessWidget {
+  const _ConeMarker({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Icon(
+            Icons.change_history_rounded,
+            color: const Color(0xFFFF9A45),
+            size: size,
+            shadows: const [Shadow(color: Colors.black54, blurRadius: 7)],
+          ),
+          Positioned(
+            bottom: 5,
+            child: Container(
+              width: size * 0.7,
+              height: 5,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFC46B),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DribblePlayer extends StatelessWidget {
+  const _DribblePlayer({required this.size, this.avatarAsset});
+
+  final double size;
+  final String? avatarAsset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: const Color(0xFFC8FF4D),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFC8FF4D).withValues(alpha: 0.3),
+            blurRadius: 14,
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: avatarAsset == null
+            ? const ColoredBox(
+                color: Color(0xFF123524),
+                child: Icon(Icons.person_rounded, color: Colors.white),
+              )
+            : Image.asset(avatarAsset!, fit: BoxFit.cover),
+      ),
+    );
+  }
+}
+
+class _DribbleTrackPainter extends CustomPainter {
+  const _DribbleTrackPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stripe = Paint()
+      ..color = Colors.white.withValues(alpha: 0.045)
+      ..strokeWidth = 2;
+    for (var x = size.width / 4; x < size.width; x += size.width / 4) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), stripe);
+    }
+    final dash = Paint()
+      ..color = Colors.white.withValues(alpha: 0.07)
+      ..strokeWidth = 1.5;
+    for (var y = 18.0; y < size.height; y += 42) {
+      canvas.drawLine(
+        Offset(size.width / 2, y),
+        Offset(size.width / 2, min(y + 20, size.height)),
+        dash,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _ResultView extends StatelessWidget {
@@ -834,7 +1034,7 @@ _TrainingInfo _trainingInfo(TrainingAttribute attribute) => switch (attribute) {
   ),
   TrainingAttribute.dribbling => const _TrainingInfo(
     title: 'Dribbling',
-    instruction: 'Koninin olmadığı koridoru seç.',
+    instruction: 'Oyuncunu sürükle, akan konilerden kaç.',
     icon: Icons.multiple_stop_rounded,
   ),
   TrainingAttribute.defending => const _TrainingInfo(

@@ -84,6 +84,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
         builder: (_) => TrainingGameScreen(
           attribute: attribute,
           statIncrease: statIncrease,
+          playerAvatarAsset: _profile.avatarAssetPath,
         ),
       ),
     );
