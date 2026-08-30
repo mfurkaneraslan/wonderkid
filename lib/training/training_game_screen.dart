@@ -145,7 +145,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       0.0,
       1.0,
     );
-    return Duration(milliseconds: (1000 - (elapsedRatio * 500)).round());
+    return Duration(milliseconds: (700 - (elapsedRatio * 400)).round());
   }
 
   void _missPaceTarget() {
