@@ -138,7 +138,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void _startPassingPattern({bool initial = false}) {
     if (widget.attribute != TrainingAttribute.passing || _finished) return;
     _passingPreviewTimer?.cancel();
-    final pattern = _generatePassingPattern(5 + _random.nextInt(5));
+    final patternLength = 6 + _score.clamp(0, 3);
+    final pattern = _generatePassingPattern(patternLength);
 
     void resetPattern() {
       _passingPattern = pattern;
@@ -156,7 +157,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     }
 
     final stepDuration = Duration(
-      milliseconds: (2000 / pattern.length).round(),
+      milliseconds: (2800 / pattern.length).round(),
     );
     _passingPreviewTimer = Timer.periodic(stepDuration, (timer) {
       if (!mounted || _finished) {

@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wonderkid/training/training_game_screen.dart';
 
 Future<List<Offset>> _passingPatternCenters(WidgetTester tester) async {
-  await tester.pump(const Duration(milliseconds: 2100));
+  await tester.pump(const Duration(milliseconds: 2900));
   await tester.pump();
   final centers = <Offset>[];
   for (var step = 0; step < 9; step++) {
@@ -251,7 +251,7 @@ void main() {
 
     for (var round = 0; round < 4; round++) {
       final centers = await _passingPatternCenters(tester);
-      expect(centers.length, inInclusiveRange(5, 9));
+      expect(centers.length, 6 + round);
       expect(find.text('SIRA SENDE'), findsOneWidget);
       await _drawPassingPattern(tester, centers);
     }
@@ -270,6 +270,7 @@ void main() {
 
     for (var attempt = 0; attempt < 3; attempt++) {
       final centers = await _passingPatternCenters(tester);
+      expect(centers.length, 6);
       await _drawPassingPattern(tester, centers.take(2).toList());
     }
 
