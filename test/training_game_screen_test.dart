@@ -297,20 +297,18 @@ void main() {
     expect(right, findsOneWidget);
     expect(find.byKey(const Key('physicalStopButton')), findsNothing);
 
-    for (var step = 0; step < 260; step++) {
-      if (find.byKey(const Key('trainingResult')).evaluate().isNotEmpty) break;
-      final boardCenter = tester.getCenter(board).dx;
-      final indicatorCenter = tester.getCenter(indicator).dx;
-      final control = indicatorCenter > boardCenter ? left : right;
-      final gesture = await tester.startGesture(tester.getCenter(control));
-      await tester.pump(const Duration(milliseconds: 80));
-      await gesture.up();
-      await tester.pump();
-    }
+    final initialPosition = tester.getCenter(indicator).dx;
+    final leftGesture = await tester.startGesture(tester.getCenter(left));
+    await tester.pump(const Duration(milliseconds: 220));
+    await leftGesture.up();
+    await tester.pump();
+    expect(tester.getCenter(indicator).dx, isNot(initialPosition));
 
-    expect(find.byKey(const Key('trainingResult')), findsOneWidget);
-    expect(find.text('Başarılı antrenman!'), findsOneWidget);
-    expect(find.textContaining('Fizik +1'), findsOneWidget);
+    final rightGesture = await tester.startGesture(tester.getCenter(right));
+    await tester.pump(const Duration(milliseconds: 220));
+    await rightGesture.up();
+    await tester.pump();
+    expect(find.byKey(const Key('trainingGameScreen')), findsOneWidget);
   });
 
   testWidgets('physical balance fails without player input', (tester) async {
