@@ -174,7 +174,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _dribbleSpawnElapsed += deltaSeconds;
     _dribbleInvulnerability = max(0, _dribbleInvulnerability - deltaSeconds);
     final speedMultiplier = 1 + ((_dribbleElapsed / _duration) * 1.1);
-    final spawnInterval = 1.5 - ((_dribbleElapsed / _duration) * 0.75);
+    final spawnInterval = 0.85 - ((_dribbleElapsed / _duration) * 0.4);
     var collision = false;
     final removedCones = <_DribbleCone>[];
 
