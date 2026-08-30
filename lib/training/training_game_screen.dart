@@ -62,12 +62,12 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   static const _accent = Color(0xFFC8FF4D);
   static const _duration = 20;
   final Random _random = Random();
-  late final AnimationController _meterController;
   late final AnimationController _shotController;
   Timer? _timer;
   Timer? _paceTickTimer;
   Timer? _dribbleTimer;
   Timer? _passingPreviewTimer;
+  Timer? _physicalTimer;
   DateTime? _lastDribbleTick;
   int _secondsLeft = _duration;
   int _lives = 3;
@@ -96,14 +96,16 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   bool _passingShowingPattern = false;
   bool _passingLocked = false;
   Offset? _passingPointer;
+  double _physicalPosition = 0;
+  double _physicalVelocity = 0;
+  double _physicalDrift = 0;
+  double _physicalDriftElapsed = 0;
+  bool _physicalLeftHeld = false;
+  bool _physicalRightHeld = false;
 
   @override
   void initState() {
     super.initState();
-    _meterController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 850),
-    )..repeat(reverse: true);
     _shotController =
         AnimationController(
           vsync: this,
@@ -116,6 +118,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _startPaceChallenge();
     _startDribblePhysics();
     _startPassingPattern(initial: true);
+    _startPhysicalBalance(initial: true);
   }
 
   void _startTimer() {
@@ -247,6 +250,94 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       if ((position - centers[index]).distance <= hitRadius) return index;
     }
     return null;
+  }
+
+  void _startPhysicalBalance({bool initial = false}) {
+    if (widget.attribute != TrainingAttribute.physical || _finished) return;
+    _physicalTimer?.cancel();
+
+    void resetBalance() {
+      _physicalPosition = 0;
+      _physicalVelocity = 0;
+      _physicalDrift = _random.nextBool() ? 0.55 : -0.55;
+      _physicalDriftElapsed = 0;
+      _physicalLeftHeld = false;
+      _physicalRightHeld = false;
+    }
+
+    if (initial) {
+      resetBalance();
+    } else {
+      setState(resetBalance);
+    }
+    _physicalTimer = Timer.periodic(
+      const Duration(milliseconds: 16),
+      (_) => _updatePhysicalBalance(),
+    );
+  }
+
+  void _updatePhysicalBalance() {
+    if (!mounted ||
+        _finished ||
+        widget.attribute != TrainingAttribute.physical) {
+      return;
+    }
+    const deltaSeconds = 0.016;
+    final elapsedRatio = ((_duration - _secondsLeft) / _duration).clamp(
+      0.0,
+      1.0,
+    );
+    final difficulty = 1 + (elapsedRatio * 1.9);
+    final driftInterval = 0.75 - (elapsedRatio * 0.38);
+    var fell = false;
+
+    setState(() {
+      _physicalDriftElapsed += deltaSeconds;
+      if (_physicalDriftElapsed >= driftInterval) {
+        _physicalDriftElapsed = 0;
+        var nextDrift = (_random.nextDouble() * 2) - 1;
+        if (nextDrift.abs() < 0.32) {
+          nextDrift = nextDrift.isNegative ? -0.32 : 0.32;
+        }
+        _physicalDrift = nextDrift;
+        _physicalVelocity += _physicalDrift * 0.055 * difficulty;
+      }
+
+      final control =
+          (_physicalRightHeld ? 1.0 : 0.0) - (_physicalLeftHeld ? 1.0 : 0.0);
+      final outwardPull = _physicalPosition * 0.72 * difficulty;
+      final randomPull = _physicalDrift * 0.48 * difficulty;
+      _physicalVelocity +=
+          (outwardPull + randomPull + (control * 2.75)) * deltaSeconds;
+      _physicalVelocity *= 0.987 - (elapsedRatio * 0.003);
+      _physicalPosition += _physicalVelocity * deltaSeconds;
+
+      if (_physicalPosition.abs() >= 1) {
+        fell = true;
+        _lives--;
+        _lastSuccess = false;
+        _physicalPosition = 0;
+        _physicalVelocity = 0;
+        _physicalDrift = _random.nextBool() ? 0.55 : -0.55;
+        _physicalDriftElapsed = 0;
+      }
+    });
+
+    if (fell && _lives <= 0) _finish();
+  }
+
+  void _setPhysicalControl(int direction, bool pressed) {
+    if (_finished || widget.attribute != TrainingAttribute.physical) return;
+    setState(() {
+      if (direction < 0) {
+        _physicalLeftHeld = pressed;
+      } else {
+        _physicalRightHeld = pressed;
+      }
+      if (pressed) {
+        _physicalVelocity += direction * 0.065;
+      }
+    });
   }
 
   void _startDribblePhysics() {
@@ -550,7 +641,9 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _paceTickTimer?.cancel();
     _dribbleTimer?.cancel();
     _passingPreviewTimer?.cancel();
-    _meterController.stop();
+    _physicalTimer?.cancel();
+    _physicalLeftHeld = false;
+    _physicalRightHeld = false;
     _shotController.stop();
     setState(() => _finished = true);
   }
@@ -573,14 +666,20 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       _passingShowingPattern = false;
       _passingLocked = false;
       _passingPointer = null;
+      _physicalPosition = 0;
+      _physicalVelocity = 0;
+      _physicalDrift = 0;
+      _physicalDriftElapsed = 0;
+      _physicalLeftHeld = false;
+      _physicalRightHeld = false;
       _nextChallenge(initial: true);
     });
-    _meterController.repeat(reverse: true);
     _shotController.reset();
     _startTimer();
     _startPaceChallenge();
     _startDribblePhysics();
     _startPassingPattern(initial: true);
+    _startPhysicalBalance(initial: true);
   }
 
   TrainingResult get _result {
@@ -610,7 +709,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _paceTickTimer?.cancel();
     _dribbleTimer?.cancel();
     _passingPreviewTimer?.cancel();
-    _meterController.dispose();
+    _physicalTimer?.cancel();
     _shotController.dispose();
     super.dispose();
   }
@@ -1161,63 +1260,113 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   Widget _physicalGame() {
+    final elapsedRatio = ((_duration - _secondsLeft) / _duration).clamp(
+      0.0,
+      1.0,
+    );
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        AnimatedBuilder(
-          animation: _meterController,
-          builder: (_, child) => Column(
-            children: [
-              SizedBox(
-                height: 220,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 54,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(27),
-                        gradient: const LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Color(0xFFFF5E72),
-                            Color(0xFFC8FF4D),
-                            Color(0xFFFF5E72),
-                          ],
-                          stops: [0, 0.5, 1],
-                        ),
-                      ),
+        Expanded(
+          child: Center(
+            child: SizedBox(
+              height: 290,
+              width: double.infinity,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  final height = constraints.maxHeight;
+                  final markerX =
+                      (width * 0.5) + (_physicalPosition * width * 0.38);
+                  final markerY =
+                      (height * 0.22) +
+                      (_physicalPosition.abs() *
+                          _physicalPosition.abs() *
+                          height *
+                          0.40);
+                  return Container(
+                    key: const Key('physicalBalanceBoard'),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D492D),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white12),
                     ),
-                    Align(
-                      alignment: Alignment(0, (_meterController.value * 2) - 1),
-                      child: Container(
-                        width: 92,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black54, blurRadius: 8),
-                          ],
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: _BalanceArcPainter(
+                              difficulty: elapsedRatio,
+                            ),
+                          ),
                         ),
-                      ),
+                        Positioned(
+                          key: const Key('physicalIndicator'),
+                          left: markerX - 17,
+                          top: markerY - 38,
+                          width: 34,
+                          height: 34,
+                          child: const CustomPaint(
+                            painter: _BalanceMarkerPainter(),
+                          ),
+                        ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 24,
+                          child: Column(
+                            children: [
+                              Text(
+                                'ZORLUK  %${(35 + (elapsedRatio * 65)).round()}',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.55),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'İBREYİ ÇİZGİNİN ÜZERİNDE TUT',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
-            ],
+            ),
           ),
         ),
-        const SizedBox(height: 28),
-        _CompactAction(
-          key: const Key('physicalStopButton'),
-          icon: Icons.pan_tool_alt_rounded,
-          label: 'DENGEDE TUT',
-          onTap: () {
-            final value = _meterController.value;
-            _answer(value >= 0.36 && value <= 0.64);
-          },
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: _BalanceControlButton(
+                key: const Key('physicalLeftButton'),
+                icon: Icons.chevron_left_rounded,
+                label: 'SOLA DENGELE',
+                active: _physicalLeftHeld,
+                onChanged: (pressed) => _setPhysicalControl(-1, pressed),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _BalanceControlButton(
+                key: const Key('physicalRightButton'),
+                icon: Icons.chevron_right_rounded,
+                label: 'SAĞA DENGELE',
+                active: _physicalRightHeld,
+                onChanged: (pressed) => _setPhysicalControl(1, pressed),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -1345,6 +1494,177 @@ class _PassingPatternPainter extends CustomPainter {
       oldDelegate.selectedNodes != selectedNodes ||
       oldDelegate.pointer != pointer ||
       oldDelegate.preview != preview;
+}
+
+class _BalanceArcPainter extends CustomPainter {
+  const _BalanceArcPainter({required this.difficulty});
+
+  final double difficulty;
+
+  Offset _point(Size size, double t) {
+    final start = Offset(size.width * 0.12, size.height * 0.62);
+    final control = Offset(size.width * 0.50, size.height * 0.02);
+    final end = Offset(size.width * 0.88, size.height * 0.62);
+    final inverse = 1 - t;
+    return Offset(
+      (inverse * inverse * start.dx) +
+          (2 * inverse * t * control.dx) +
+          (t * t * end.dx),
+      (inverse * inverse * start.dy) +
+          (2 * inverse * t * control.dy) +
+          (t * t * end.dy),
+    );
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(size.width * 0.12, size.height * 0.62)
+      ..quadraticBezierTo(
+        size.width * 0.50,
+        size.height * 0.02,
+        size.width * 0.88,
+        size.height * 0.62,
+      );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = const Color(0xFF47C8FF).withValues(alpha: 0.20)
+        ..strokeWidth = 13
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.90)
+        ..strokeWidth = 4
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
+    );
+
+    final safePath = Path()
+      ..moveTo(_point(size, 0.39).dx, _point(size, 0.39).dy);
+    for (var step = 40; step <= 61; step++) {
+      final point = _point(size, step / 100);
+      safePath.lineTo(point.dx, point.dy);
+    }
+    canvas.drawPath(
+      safePath,
+      Paint()
+        ..color = const Color(0xFFC8FF4D)
+        ..strokeWidth = 7
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
+    );
+
+    for (final t in [0.0, 1.0]) {
+      final point = _point(size, t);
+      canvas.drawCircle(
+        point,
+        10,
+        Paint()
+          ..color = Color.lerp(
+            const Color(0xFFFFC46B),
+            const Color(0xFFFF5E72),
+            difficulty,
+          )!,
+      );
+      canvas.drawCircle(point, 5, Paint()..color = const Color(0xFF071A12));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BalanceArcPainter oldDelegate) =>
+      oldDelegate.difficulty != difficulty;
+}
+
+class _BalanceMarkerPainter extends CustomPainter {
+  const _BalanceMarkerPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(size.width * 0.5, size.height)
+      ..lineTo(2, 2)
+      ..lineTo(size.width - 2, 2)
+      ..close();
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = const Color(0xFF47C8FF)
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = Colors.white
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _BalanceMarkerPainter oldDelegate) => false;
+}
+
+class _BalanceControlButton extends StatelessWidget {
+  const _BalanceControlButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: (_) => onChanged(true),
+        onPointerUp: (_) => onChanged(false),
+        onPointerCancel: (_) => onChanged(false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 90),
+          height: 64,
+          decoration: BoxDecoration(
+            color: active ? const Color(0xFFC8FF4D) : const Color(0xFF123524),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: active ? const Color(0xFFC8FF4D) : Colors.white24,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 30,
+                color: active ? const Color(0xFF092115) : Colors.white,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  color: active ? const Color(0xFF092115) : Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 enum _ShotOutcome { weak, goal, over, wide }
@@ -1732,7 +2052,7 @@ _TrainingInfo _trainingInfo(TrainingAttribute attribute) => switch (attribute) {
   ),
   TrainingAttribute.physical => const _TrainingInfo(
     title: 'Fizik',
-    instruction: 'Gösterge yeşil merkeze gelince durdur.',
+    instruction: 'Sağ-sol tuşlarını basılı tut, 20 saniye dengede kal.',
     icon: Icons.fitness_center_rounded,
   ),
 };
