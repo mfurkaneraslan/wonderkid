@@ -129,8 +129,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
         ? 1
         : switch (_dribbleElapsed) {
             < 6 => 1,
-            < 13 => _dribbleWave.isEven ? 2 : 1,
-            _ => _dribbleWave % 3 == 0 ? 3 : 2,
+            < 10 => _dribbleWave.isEven ? 2 : 1,
+            _ => 2 + (_dribbleWave % 3),
           };
     final positions = switch (count) {
       1 => [0.08 + (_random.nextDouble() * 0.84)],
@@ -139,9 +139,16 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
         0.74 + (_random.nextDouble() * 0.12),
       ],
       _ => [
-        0.08 + (_random.nextDouble() * 0.05),
-        0.47 + (_random.nextDouble() * 0.06),
-        0.87 + (_random.nextDouble() * 0.05),
+        if (count == 3) ...[
+          0.08 + (_random.nextDouble() * 0.05),
+          0.47 + (_random.nextDouble() * 0.06),
+          0.87 + (_random.nextDouble() * 0.05),
+        ] else ...[
+          0.07 + (_random.nextDouble() * 0.03),
+          0.34 + (_random.nextDouble() * 0.03),
+          0.63 + (_random.nextDouble() * 0.03),
+          0.90 + (_random.nextDouble() * 0.03),
+        ],
       ],
     };
     for (final x in positions) {
@@ -149,7 +156,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
         _DribbleCone(
           x: x,
           y: -0.12,
-          speed: 0.68 + (_random.nextDouble() * 0.12),
+          speed: 0.75 + (_random.nextDouble() * 0.15),
         ),
       );
     }
@@ -166,7 +173,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _dribbleElapsed += deltaSeconds;
     _dribbleSpawnElapsed += deltaSeconds;
     _dribbleInvulnerability = max(0, _dribbleInvulnerability - deltaSeconds);
-    final speedMultiplier = 1 + ((_dribbleElapsed / _duration) * 0.95);
+    final speedMultiplier = 1 + ((_dribbleElapsed / _duration) * 1.1);
     final spawnInterval = 1.5 - ((_dribbleElapsed / _duration) * 0.75);
     var collision = false;
     final removedCones = <_DribbleCone>[];
