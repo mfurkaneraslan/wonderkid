@@ -76,6 +76,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   bool? _lastSuccess;
   final List<_PaceTarget> _paceTargets = [];
   Offset _shotDrag = Offset.zero;
+  double _shotPower = 0;
   double _shotFieldWidth = 0;
   double _shotFieldHeight = 0;
   bool _shotAnimating = false;
@@ -223,6 +224,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     if (_finished || _shotAnimating) return;
     setState(() {
       _shotDrag = Offset.zero;
+      _shotPower = 0;
       _shotFeedback = null;
     });
   }
@@ -235,20 +237,24 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
           -_shotFieldWidth * 0.45,
           _shotFieldWidth * 0.45,
         ),
-        (_shotDrag.dy + details.delta.dy).clamp(-_shotFieldHeight, 0.0),
+        0,
       );
     });
   }
 
   void _releaseShot(DragEndDetails details) {
     if (_finished || _shotAnimating || _shotFieldHeight <= 0) return;
-    final power = (-_shotDrag.dy / _shotFieldHeight).clamp(0.0, 1.0);
+    // Power comes only from the release velocity. Holding the ball or moving it
+    // back and forth therefore cannot be used to tune the shot meter.
+    final upwardVelocity = max(0.0, -details.velocity.pixelsPerSecond.dy);
+    final power = (upwardVelocity / 2400).clamp(0.0, 1.0);
     final outcome = switch (power) {
-      < 0.32 => _ShotOutcome.weak,
-      <= 0.66 => _ShotOutcome.goal,
+      < 0.28 => _ShotOutcome.weak,
+      <= 0.70 => _ShotOutcome.goal,
       _ => _ShotOutcome.over,
     };
     setState(() {
+      _shotPower = power;
       _shotOutcome = outcome;
       _shotAnimating = true;
       _shotFeedback = switch (outcome) {
@@ -266,6 +272,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     setState(() {
       _shotAnimating = false;
       _shotDrag = Offset.zero;
+      _shotPower = 0;
       _shotFeedback = success ? 'GOL!' : _shotFeedback;
     });
     _answer(success);
@@ -433,6 +440,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       _shotOutcome = null;
       _shotFeedback = null;
       _shotDrag = Offset.zero;
+      _shotPower = 0;
       _nextChallenge(initial: true);
     });
     _meterController.repeat(reverse: true);
@@ -671,9 +679,6 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       builder: (context, constraints) {
         _shotFieldWidth = constraints.maxWidth;
         _shotFieldHeight = constraints.maxHeight;
-        final power = constraints.maxHeight <= 0
-            ? 0.0
-            : (-_shotDrag.dy / constraints.maxHeight).clamp(0.0, 1.0);
         return GestureDetector(
           key: const Key('shootingSwipeArea'),
           behavior: HitTestBehavior.opaque,
@@ -725,7 +730,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
                     bottom: 52,
                     width: 12,
                     height: constraints.maxHeight * 0.32,
-                    child: _ShotPowerMeter(power: power),
+                    child: _ShotPowerMeter(power: _shotPower),
                   ),
                   AnimatedBuilder(
                     animation: _shotController,
@@ -763,7 +768,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
                     right: 0,
                     bottom: 12,
                     child: Text(
-                      'TOPU YUKARI SWIPE’LA',
+                      'TEK HAMLEDE YUKARI SWIPE’LA',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white54,

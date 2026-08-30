@@ -129,9 +129,7 @@ void main() {
     expect(find.byKey(const Key('shootingGoal')), findsOneWidget);
     expect(find.byKey(const Key('shootingBall')), findsOneWidget);
     final swipeArea = find.byKey(const Key('shootingSwipeArea'));
-    final fieldHeight = tester.getSize(swipeArea).height;
-
-    await tester.drag(swipeArea, Offset(0, -fieldHeight * 0.48));
+    await tester.fling(swipeArea, const Offset(0, -180), 1200);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 800));
     await tester.pump();
@@ -149,17 +147,35 @@ void main() {
     );
 
     final swipeArea = find.byKey(const Key('shootingSwipeArea'));
-    final fieldHeight = tester.getSize(swipeArea).height;
-
-    await tester.drag(swipeArea, Offset(0, -fieldHeight * 0.18));
+    await tester.fling(swipeArea, const Offset(0, -100), 350);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.text('ÇOK ZAYIF'), findsOneWidget);
 
-    await tester.drag(swipeArea, Offset(0, -fieldHeight * 0.82));
+    await tester.fling(swipeArea, const Offset(0, -240), 2400);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.text('FAZLA GÜÇLÜ'), findsOneWidget);
+  });
+
+  testWidgets('shooting cannot be tuned by holding a long drag', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
+      ),
+    );
+
+    final swipeArea = find.byKey(const Key('shootingSwipeArea'));
+    await tester.timedDrag(
+      swipeArea,
+      const Offset(0, -260),
+      const Duration(milliseconds: 900),
+    );
+    await tester.pump(const Duration(milliseconds: 800));
+
+    expect(find.text('ÇOK ZAYIF'), findsOneWidget);
   });
 
   testWidgets('dribbling player follows horizontal drag without lane taps', (
