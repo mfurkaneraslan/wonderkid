@@ -53,9 +53,18 @@ void main() {
       ),
     );
 
-    for (var index = 0; index < 80; index++) {
-      await tester.tap(find.byKey(const Key('paceActiveTarget')));
-      await tester.pump(const Duration(milliseconds: 250));
+    for (var index = 0; index < 200; index++) {
+      final activeTarget = find
+          .byWidgetPredicate(
+            (widget) =>
+                widget.key is ValueKey<String> &&
+                (widget.key! as ValueKey<String>).value.startsWith(
+                  'paceActiveTarget',
+                ),
+          )
+          .first;
+      await tester.tap(activeTarget);
+      await tester.pump(const Duration(milliseconds: 100));
     }
     await tester.pump();
 
@@ -86,6 +95,28 @@ void main() {
 
     expect(find.text('Süre dolmadan 3 hakkın da bitti.'), findsOneWidget);
     expect(find.textContaining('Gelişim kazanamadın'), findsOneWidget);
+  });
+
+  testWidgets('pace lights the next target halfway through the window', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(attribute: TrainingAttribute.pace),
+      ),
+    );
+
+    Finder activeTargets() => find.byWidgetPredicate(
+      (widget) =>
+          widget.key is ValueKey<String> &&
+          (widget.key! as ValueKey<String>).value.startsWith(
+            'paceActiveTarget',
+          ),
+    );
+
+    expect(activeTargets(), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 360));
+    expect(activeTargets(), findsNWidgets(2));
   });
 
   testWidgets('dribbling player follows horizontal drag without lane taps', (

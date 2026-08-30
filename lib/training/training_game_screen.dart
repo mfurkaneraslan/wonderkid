@@ -63,9 +63,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   static const _duration = 20;
   final Random _random = Random();
   late final AnimationController _meterController;
-  late final AnimationController _paceController;
   Timer? _timer;
-  Timer? _paceTimer;
+  Timer? _paceTickTimer;
   Timer? _dribbleTimer;
   DateTime? _lastDribbleTick;
   int _secondsLeft = _duration;
@@ -74,6 +73,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   int _target = 0;
   bool _finished = false;
   bool? _lastSuccess;
+  final List<_PaceTarget> _paceTargets = [];
   double _dribblePlayerX = 0.5;
   double _dribbleTrackWidth = 0;
   double _dribbleTrackHeight = 0;
@@ -90,10 +90,6 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       vsync: this,
       duration: const Duration(milliseconds: 850),
     )..repeat(reverse: true);
-    _paceController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    );
     _nextChallenge(initial: true);
     _startTimer();
     _startPaceChallenge();
@@ -132,12 +128,13 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
 
   void _startPaceChallenge() {
     if (widget.attribute != TrainingAttribute.pace || _finished) return;
-    _paceTimer?.cancel();
-    final responseWindow = _paceResponseWindow;
-    _paceController
-      ..duration = responseWindow
-      ..forward(from: 0);
-    _paceTimer = Timer(responseWindow, _missPaceTarget);
+    _paceTickTimer?.cancel();
+    _paceTargets.clear();
+    _spawnPaceTarget();
+    _paceTickTimer = Timer.periodic(
+      const Duration(milliseconds: 20),
+      (_) => _updatePaceTargets(),
+    );
   }
 
   Duration get _paceResponseWindow {
@@ -148,38 +145,64 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     return Duration(milliseconds: (700 - (elapsedRatio * 400)).round());
   }
 
-  void _missPaceTarget() {
+  void _spawnPaceTarget() {
+    final occupied = _paceTargets.map((target) => target.index).toSet();
+    final available = [
+      for (var index = 0; index < 9; index++)
+        if (!occupied.contains(index)) index,
+    ];
+    if (available.isEmpty) return;
+    _paceTargets.add(
+      _PaceTarget(
+        index: available[_random.nextInt(available.length)],
+        duration: _paceResponseWindow.inMilliseconds / 1000,
+      ),
+    );
+  }
+
+  void _updatePaceTargets() {
     if (!mounted || _finished) return;
+    var targetsToSpawn = 0;
     setState(() {
-      _lastSuccess = false;
-      _lives--;
-      if (_lives > 0) _nextChallenge();
+      final expiredTargets = <_PaceTarget>[];
+      for (final target in _paceTargets) {
+        target.elapsed += 0.02;
+        if (!target.spawnedNext && target.elapsed >= target.duration / 2) {
+          target.spawnedNext = true;
+          targetsToSpawn++;
+        }
+        if (target.elapsed >= target.duration) {
+          expiredTargets.add(target);
+          _lastSuccess = false;
+          _lives--;
+        }
+      }
+      _paceTargets.removeWhere(expiredTargets.contains);
+      for (var index = 0; index < targetsToSpawn; index++) {
+        _spawnPaceTarget();
+      }
+      if (_paceTargets.isEmpty && _lives > 0) _spawnPaceTarget();
     });
-    if (_lives <= 0) {
-      _finish();
-    } else {
-      _startPaceChallenge();
-    }
+    if (_lives <= 0) _finish();
   }
 
   void _answerPace(int selectedTarget) {
     if (_finished) return;
-    _paceTimer?.cancel();
-    final success = selectedTarget == _target;
     setState(() {
+      final targetIndex = _paceTargets.indexWhere(
+        (target) => target.index == selectedTarget,
+      );
+      final success = targetIndex >= 0;
       _lastSuccess = success;
       if (success) {
+        _paceTargets.removeAt(targetIndex);
         _score++;
       } else {
         _lives--;
       }
-      if (_lives > 0) _nextChallenge();
+      if (_paceTargets.isEmpty && _lives > 0) _spawnPaceTarget();
     });
-    if (_lives <= 0) {
-      _finish();
-    } else {
-      _startPaceChallenge();
-    }
+    if (_lives <= 0) _finish();
   }
 
   void _spawnDribbleWave({bool initial = false}) {
@@ -285,7 +308,6 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void _nextChallenge({bool initial = false}) {
     switch (widget.attribute) {
       case TrainingAttribute.pace:
-        _target = _differentRandom(9, initial ? -1 : _target);
         break;
       case TrainingAttribute.shooting:
         _target = _differentRandom(9, initial ? -1 : _target);
@@ -327,10 +349,9 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void _finish() {
     if (_finished) return;
     _timer?.cancel();
-    _paceTimer?.cancel();
+    _paceTickTimer?.cancel();
     _dribbleTimer?.cancel();
     _meterController.stop();
-    _paceController.stop();
     setState(() => _finished = true);
   }
 
@@ -369,10 +390,9 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   @override
   void dispose() {
     _timer?.cancel();
-    _paceTimer?.cancel();
+    _paceTickTimer?.cancel();
     _dribbleTimer?.cancel();
     _meterController.dispose();
-    _paceController.dispose();
     super.dispose();
   }
 
@@ -516,53 +536,54 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
               mainAxisSpacing: 10,
             ),
             itemBuilder: (_, index) {
-              final active = index == _target;
+              final targetPosition = _paceTargets.indexWhere(
+                (target) => target.index == index,
+              );
+              final active = targetPosition >= 0;
+              final target = active ? _paceTargets[targetPosition] : null;
+              final brightness = target == null
+                  ? 0.0
+                  : (1 - (target.elapsed / target.duration)).clamp(0.0, 1.0);
+              final activeOpacity = 0.25 + (brightness * 0.75);
               return InkWell(
                 key: Key('paceTarget$index'),
                 onTap: () => _answerPace(index),
                 borderRadius: BorderRadius.circular(18),
-                child: AnimatedBuilder(
-                  key: active ? const Key('paceActiveTarget') : null,
-                  animation: _paceController,
-                  builder: (context, _) {
-                    final brightness = active ? 1 - _paceController.value : 0.0;
-                    final activeOpacity = 0.25 + (brightness * 0.75);
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: active
-                            ? _accent.withValues(alpha: activeOpacity)
-                            : const Color(0xFF123524),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: active
-                              ? _accent.withValues(
-                                  alpha: 0.35 + (brightness * 0.65),
-                                )
-                              : Colors.white12,
-                          width: 2,
-                        ),
-                        boxShadow: active
-                            ? [
-                                BoxShadow(
-                                  color: _accent.withValues(
-                                    alpha: brightness * 0.4,
-                                  ),
-                                  blurRadius: 18 * brightness,
-                                  spreadRadius: 2 * brightness,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Icon(
-                        active ? Icons.bolt_rounded : Icons.circle_outlined,
-                        size: active ? 42 : 18,
-                        color: active
-                            ? const Color(0xFF092115)
-                                  .withValues(alpha: 0.35 + (brightness * 0.65))
-                            : Colors.white12,
-                      ),
-                    );
-                  },
+                child: Container(
+                  key: active ? Key('paceActiveTarget$index') : null,
+                  decoration: BoxDecoration(
+                    color: active
+                        ? _accent.withValues(alpha: activeOpacity)
+                        : const Color(0xFF123524),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: active
+                          ? _accent.withValues(
+                              alpha: 0.35 + (brightness * 0.65),
+                            )
+                          : Colors.white12,
+                      width: 2,
+                    ),
+                    boxShadow: active
+                        ? [
+                            BoxShadow(
+                              color: _accent.withValues(
+                                alpha: brightness * 0.4,
+                              ),
+                              blurRadius: 18 * brightness,
+                              spreadRadius: 2 * brightness,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Icon(
+                    active ? Icons.bolt_rounded : Icons.circle_outlined,
+                    size: active ? 42 : 18,
+                    color: active
+                        ? const Color(0xFF092115)
+                              .withValues(alpha: 0.35 + (brightness * 0.65))
+                        : Colors.white12,
+                  ),
                 ),
               );
             },
@@ -862,6 +883,15 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       ],
     );
   }
+}
+
+class _PaceTarget {
+  _PaceTarget({required this.index, required this.duration});
+
+  final int index;
+  final double duration;
+  double elapsed = 0;
+  bool spawnedNext = false;
 }
 
 class _DribbleCone {
