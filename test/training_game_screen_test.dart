@@ -326,6 +326,46 @@ void main() {
     expect(find.textContaining('Gelişim kazanamadın'), findsOneWidget);
   });
 
+  testWidgets('defending card catches falling balls by dragging', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(attribute: TrainingAttribute.defending),
+      ),
+    );
+
+    final dragArea = find.byKey(const Key('defendingDragArea'));
+    final card = find.byKey(const Key('defendingPlayerCard'));
+    final firstBall = find.byKey(const Key('defendingBall0'));
+    expect(dragArea, findsOneWidget);
+    expect(card, findsOneWidget);
+    expect(firstBall, findsOneWidget);
+    expect(find.byKey(const Key('defendingLeftButton')), findsNothing);
+    expect(find.byKey(const Key('defendingRightButton')), findsNothing);
+
+    final before = tester.getCenter(card).dx;
+    final ballX = tester.getCenter(firstBall).dx;
+    for (var adjustment = 0; adjustment < 3; adjustment++) {
+      final remaining = ballX - tester.getCenter(card).dx;
+      await tester.drag(dragArea, Offset(remaining, 0));
+      await tester.pump();
+    }
+    expect(tester.getCenter(card).dx, isNot(before));
+    expect(tester.getCenter(card).dx, closeTo(ballX, 6));
+
+    for (var frame = 0; frame < 45; frame++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    final scoreText = tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(const Key('trainingScore')),
+        matching: find.byType(Text),
+      ),
+    );
+    expect(int.parse(scoreText.data!), greaterThan(0));
+  });
+
   testWidgets('dribbling player follows horizontal drag without lane taps', (
     tester,
   ) async {

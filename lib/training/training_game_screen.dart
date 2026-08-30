@@ -68,7 +68,9 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   Timer? _dribbleTimer;
   Timer? _passingPreviewTimer;
   Timer? _physicalTimer;
+  Timer? _defendingTimer;
   DateTime? _lastDribbleTick;
+  DateTime? _lastDefendingTick;
   int _secondsLeft = _duration;
   int _lives = 3;
   int _score = 0;
@@ -102,6 +104,13 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   double _physicalDriftElapsed = 0;
   bool _physicalLeftHeld = false;
   bool _physicalRightHeld = false;
+  double _defendingPlayerX = 0.5;
+  double _defendingTrackWidth = 0;
+  double _defendingTrackHeight = 0;
+  double _defendingElapsed = 0;
+  double _defendingSpawnElapsed = 0;
+  int _defendingWave = 0;
+  final List<_DefendingBall> _defendingBalls = [];
 
   @override
   void initState() {
@@ -119,6 +128,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _startDribblePhysics();
     _startPassingPattern(initial: true);
     _startPhysicalBalance(initial: true);
+    _startDefendingCatch(initial: true);
   }
 
   void _startTimer() {
@@ -595,6 +605,121 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
         contactDistance * contactDistance;
   }
 
+  void _startDefendingCatch({bool initial = false}) {
+    if (widget.attribute != TrainingAttribute.defending || _finished) return;
+    _defendingTimer?.cancel();
+
+    void resetGame() {
+      _defendingPlayerX = 0.5;
+      _defendingElapsed = 0;
+      _defendingSpawnElapsed = 0;
+      _defendingWave = 0;
+      _defendingBalls.clear();
+      _spawnDefendingWave(initial: true);
+      _lastDefendingTick = DateTime.now();
+    }
+
+    if (initial) {
+      resetGame();
+    } else {
+      setState(resetGame);
+    }
+    _defendingTimer = Timer.periodic(
+      const Duration(milliseconds: 16),
+      (_) => _updateDefendingCatch(),
+    );
+  }
+
+  void _spawnDefendingWave({bool initial = false}) {
+    final count = initial
+        ? 1
+        : switch (_defendingElapsed) {
+            < 7 => 1,
+            < 13 => _defendingWave.isEven ? 2 : 1,
+            _ => 2 + (_defendingWave % 3 == 0 ? 1 : 0),
+          };
+    final positions = <double>[];
+    while (positions.length < count) {
+      final candidate = 0.06 + (_random.nextDouble() * 0.88);
+      if (positions.every((position) => (position - candidate).abs() > 0.22)) {
+        positions.add(candidate);
+      }
+    }
+    for (final x in positions) {
+      _defendingBalls.add(
+        _DefendingBall(
+          x: x,
+          y: -0.10 - (_random.nextDouble() * 0.10),
+          speed: 0.50 + (_random.nextDouble() * 0.15),
+        ),
+      );
+    }
+    _defendingWave++;
+  }
+
+  void _updateDefendingCatch() {
+    if (!mounted ||
+        _finished ||
+        widget.attribute != TrainingAttribute.defending) {
+      return;
+    }
+    final now = DateTime.now();
+    final previous = _lastDefendingTick ?? now;
+    _lastDefendingTick = now;
+    final deltaSeconds = (now.difference(previous).inMicroseconds / 1000000)
+        .clamp(0.016, 0.05);
+    _defendingElapsed += deltaSeconds;
+    _defendingSpawnElapsed += deltaSeconds;
+    final progress = (_defendingElapsed / _duration).clamp(0.0, 1.0);
+    final speedMultiplier = 1 + (progress * 1.15);
+    final spawnInterval = 1.05 - (progress * 0.48);
+    final removedBalls = <_DefendingBall>[];
+
+    setState(() {
+      for (final ball in _defendingBalls) {
+        ball.y += ball.speed * speedMultiplier * deltaSeconds;
+        if (_ballTouchesDefendingCard(ball)) {
+          _score++;
+          _lastSuccess = true;
+          removedBalls.add(ball);
+        } else if (ball.y > 1.08) {
+          _lives--;
+          _lastSuccess = false;
+          removedBalls.add(ball);
+        }
+      }
+      _defendingBalls.removeWhere(removedBalls.contains);
+      if (_defendingSpawnElapsed >= spawnInterval) {
+        _defendingSpawnElapsed = 0;
+        _spawnDefendingWave();
+      }
+    });
+
+    if (_lives <= 0) _finish();
+  }
+
+  bool _ballTouchesDefendingCard(_DefendingBall ball) {
+    if (_defendingTrackWidth <= 0 || _defendingTrackHeight <= 0) return false;
+    const cardWidth = 72.0;
+    const cardHeight = 96.0;
+    const ballSize = 38.0;
+    final cardLeft = _defendingPlayerX * (_defendingTrackWidth - cardWidth);
+    final cardRect = Rect.fromLTWH(
+      cardLeft,
+      _defendingTrackHeight - cardHeight - 24,
+      cardWidth,
+      cardHeight,
+    );
+    final ballCenter = Offset(
+      (ball.x * (_defendingTrackWidth - ballSize)) + (ballSize / 2),
+      (ball.y * (_defendingTrackHeight - ballSize)) + (ballSize / 2),
+    );
+    final closestX = ballCenter.dx.clamp(cardRect.left, cardRect.right);
+    final closestY = ballCenter.dy.clamp(cardRect.top, cardRect.bottom);
+    return (ballCenter - Offset(closestX, closestY)).distanceSquared <=
+        pow(ballSize / 2, 2);
+  }
+
   void _nextChallenge({bool initial = false}) {
     switch (widget.attribute) {
       case TrainingAttribute.pace:
@@ -609,7 +734,6 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
         _target = _differentRandom(3, initial ? -1 : _target);
         break;
       case TrainingAttribute.defending:
-        _target = _differentRandom(2, initial ? -1 : _target);
         break;
       case TrainingAttribute.physical:
         break;
@@ -643,6 +767,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _dribbleTimer?.cancel();
     _passingPreviewTimer?.cancel();
     _physicalTimer?.cancel();
+    _defendingTimer?.cancel();
     _physicalLeftHeld = false;
     _physicalRightHeld = false;
     _shotController.stop();
@@ -673,6 +798,11 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       _physicalDriftElapsed = 0;
       _physicalLeftHeld = false;
       _physicalRightHeld = false;
+      _defendingPlayerX = 0.5;
+      _defendingElapsed = 0;
+      _defendingSpawnElapsed = 0;
+      _defendingWave = 0;
+      _defendingBalls.clear();
       _nextChallenge(initial: true);
     });
     _shotController.reset();
@@ -681,6 +811,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _startDribblePhysics();
     _startPassingPattern(initial: true);
     _startPhysicalBalance(initial: true);
+    _startDefendingCatch(initial: true);
   }
 
   TrainingResult get _result {
@@ -711,6 +842,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _dribbleTimer?.cancel();
     _passingPreviewTimer?.cancel();
     _physicalTimer?.cancel();
+    _defendingTimer?.cancel();
     _shotController.dispose();
     super.dispose();
   }
@@ -791,6 +923,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
             ),
             const SizedBox(width: 12),
             _CounterPill(
+              key: const Key('trainingScore'),
               icon: Icons.stars_rounded,
               text: widget.attribute == TrainingAttribute.passing
                   ? '$_score/4'
@@ -1208,55 +1341,78 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   Widget _defendingGame() {
-    final left = _target == 0;
-    return Column(
-      children: [
-        Expanded(
-          child: Center(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const cardWidth = 72.0;
+        const cardHeight = 96.0;
+        const ballSize = 38.0;
+        _defendingTrackWidth = constraints.maxWidth;
+        _defendingTrackHeight = constraints.maxHeight;
+        final playableWidth = max(1.0, constraints.maxWidth - cardWidth);
+        final ballWidth = max(1.0, constraints.maxWidth - ballSize);
+        final ballHeight = max(1.0, constraints.maxHeight - ballSize);
+        return GestureDetector(
+          key: const Key('defendingDragArea'),
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragUpdate: (details) {
+            setState(() {
+              _defendingPlayerX =
+                  (_defendingPlayerX +
+                          (details.delta.dx / constraints.maxWidth))
+                      .clamp(0.0, 1.0);
+            });
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
             child: Container(
-              width: 160,
-              height: 160,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05),
+                color: const Color(0xFF0D492D),
+                borderRadius: BorderRadius.circular(22),
                 border: Border.all(color: Colors.white12),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Stack(
                 children: [
-                  const Icon(Icons.directions_run_rounded, size: 48),
-                  Icon(
-                    left ? Icons.west_rounded : Icons.east_rounded,
-                    color: _accent,
-                    size: 54,
+                  Positioned.fill(
+                    child: CustomPaint(painter: const _DefendingRainPainter()),
+                  ),
+                  for (var index = 0; index < _defendingBalls.length; index++)
+                    Positioned(
+                      key: Key('defendingBall$index'),
+                      left: _defendingBalls[index].x * ballWidth,
+                      top: _defendingBalls[index].y * ballHeight,
+                      child: const _FallingBall(size: ballSize),
+                    ),
+                  Positioned(
+                    key: const Key('defendingPlayerCard'),
+                    left: _defendingPlayerX * playableWidth,
+                    bottom: 24,
+                    child: _DefendingPlayerCard(
+                      width: cardWidth,
+                      height: cardHeight,
+                      avatarAsset: widget.playerAvatarAsset,
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 5,
+                    child: Text(
+                      'KARTINI SAĞA • SOLA SÜRÜKLE',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.38),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-        ),
-        Row(
-          children: [
-            Expanded(
-              child: _CompactAction(
-                key: const Key('defendingLeftButton'),
-                icon: Icons.chevron_left_rounded,
-                label: 'SOLU KAPAT',
-                onTap: () => _answer(left),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _CompactAction(
-                key: const Key('defendingRightButton'),
-                icon: Icons.chevron_right_rounded,
-                label: 'SAĞI KAPAT',
-                onTap: () => _answer(!left),
-              ),
-            ),
-          ],
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -1767,6 +1923,118 @@ class _DribbleCone {
   double speed;
 }
 
+class _DefendingBall {
+  _DefendingBall({required this.x, required this.y, required this.speed});
+
+  double x;
+  double y;
+  double speed;
+}
+
+class _FallingBall extends StatelessWidget {
+  const _FallingBall({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(color: Colors.black54, width: 1.5),
+        boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
+      ),
+      child: Icon(
+        Icons.sports_soccer_rounded,
+        color: const Color(0xFF092115),
+        size: size * 0.88,
+      ),
+    );
+  }
+}
+
+class _DefendingPlayerCard extends StatelessWidget {
+  const _DefendingPlayerCard({
+    required this.width,
+    required this.height,
+    this.avatarAsset,
+  });
+
+  final double width;
+  final double height;
+  final String? avatarAsset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFE47A), Color(0xFFC98716), Color(0xFFFFD65A)],
+        ),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFFFFF1A6), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFC83D).withValues(alpha: 0.35),
+            blurRadius: 16,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: avatarAsset == null
+            ? const ColoredBox(
+                color: Color(0xFF123524),
+                child: Icon(
+                  Icons.person_rounded,
+                  color: Colors.white,
+                  size: 38,
+                ),
+              )
+            : Image.asset(avatarAsset!, fit: BoxFit.cover),
+      ),
+    );
+  }
+}
+
+class _DefendingRainPainter extends CustomPainter {
+  const _DefendingRainPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final lanePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.045)
+      ..strokeWidth = 1.5;
+    for (var x = size.width / 5; x < size.width; x += size.width / 5) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), lanePaint);
+    }
+    final rainPaint = Paint()
+      ..color = const Color(0xFF47C8FF).withValues(alpha: 0.12)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    for (var x = 18.0; x < size.width; x += 34) {
+      for (
+        var y = 8.0 + ((x ~/ 34).isEven ? 0 : 18);
+        y < size.height;
+        y += 46
+      ) {
+        canvas.drawLine(Offset(x, y), Offset(x - 5, y + 12), rainPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DefendingRainPainter oldDelegate) => false;
+}
+
 class _ConeMarker extends StatelessWidget {
   const _ConeMarker({required this.size});
 
@@ -1978,41 +2246,6 @@ class _CounterPill extends StatelessWidget {
   }
 }
 
-class _CompactAction extends StatelessWidget {
-  const _CompactAction({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 60,
-      child: FilledButton.icon(
-        onPressed: onTap,
-        style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFFC8FF4D),
-          foregroundColor: const Color(0xFF092115),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        icon: Icon(icon),
-        label: Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11),
-        ),
-      ),
-    );
-  }
-}
-
 class _TrainingInfo {
   const _TrainingInfo({
     required this.title,
@@ -2048,7 +2281,7 @@ _TrainingInfo _trainingInfo(TrainingAttribute attribute) => switch (attribute) {
   ),
   TrainingAttribute.defending => const _TrainingInfo(
     title: 'Defans',
-    instruction: 'Rakibin gittiği tarafı kapat.',
+    instruction: 'Kartını sürükle, yağan topları yere düşmeden yakala.',
     icon: Icons.shield_outlined,
   ),
   TrainingAttribute.physical => const _TrainingInfo(
