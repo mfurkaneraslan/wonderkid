@@ -178,6 +178,32 @@ void main() {
     expect(find.text('ÇOK ZAYIF'), findsOneWidget);
   });
 
+  testWidgets('shooting follows the swipe angle and can miss wide', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
+      ),
+    );
+
+    final swipeArea = find.byKey(const Key('shootingSwipeArea'));
+
+    await tester.fling(swipeArea, const Offset(-70, -200), 1200);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump();
+    final angledFeedback = tester.widget<Text>(
+      find.byKey(const Key('shotFeedback')),
+    );
+    expect(angledFeedback.data, 'GOL!');
+
+    await tester.fling(swipeArea, const Offset(180, -200), 1400);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.text('DIŞARI'), findsOneWidget);
+  });
+
   testWidgets('dribbling player follows horizontal drag without lane taps', (
     tester,
   ) async {

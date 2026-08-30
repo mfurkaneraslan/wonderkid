@@ -75,9 +75,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   bool _finished = false;
   bool? _lastSuccess;
   final List<_PaceTarget> _paceTargets = [];
-  Offset _shotDrag = Offset.zero;
+  double _shotAim = 0;
   double _shotPower = 0;
-  double _shotFieldWidth = 0;
   double _shotFieldHeight = 0;
   bool _shotAnimating = false;
   _ShotOutcome? _shotOutcome;
@@ -223,22 +222,9 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void _beginShot(DragStartDetails details) {
     if (_finished || _shotAnimating) return;
     setState(() {
-      _shotDrag = Offset.zero;
+      _shotAim = 0;
       _shotPower = 0;
       _shotFeedback = null;
-    });
-  }
-
-  void _updateShotDrag(DragUpdateDetails details) {
-    if (_finished || _shotAnimating) return;
-    setState(() {
-      _shotDrag = Offset(
-        (_shotDrag.dx + details.delta.dx).clamp(
-          -_shotFieldWidth * 0.45,
-          _shotFieldWidth * 0.45,
-        ),
-        0,
-      );
     });
   }
 
@@ -248,12 +234,24 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     // back and forth therefore cannot be used to tune the shot meter.
     final upwardVelocity = max(0.0, -details.velocity.pixelsPerSecond.dy);
     final power = (upwardVelocity / 2400).clamp(0.0, 1.0);
-    final outcome = switch (power) {
-      < 0.28 => _ShotOutcome.weak,
-      <= 0.70 => _ShotOutcome.goal,
-      _ => _ShotOutcome.over,
-    };
+    final aim = upwardVelocity <= 0
+        ? 0.0
+        : (details.velocity.pixelsPerSecond.dx / upwardVelocity).clamp(
+            -1.4,
+            1.4,
+          );
+    final _ShotOutcome outcome;
+    if (power < 0.28) {
+      outcome = _ShotOutcome.weak;
+    } else if (power > 0.70) {
+      outcome = _ShotOutcome.over;
+    } else if (aim.abs() > 0.65) {
+      outcome = _ShotOutcome.wide;
+    } else {
+      outcome = _ShotOutcome.goal;
+    }
     setState(() {
+      _shotAim = aim;
       _shotPower = power;
       _shotOutcome = outcome;
       _shotAnimating = true;
@@ -261,6 +259,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
         _ShotOutcome.weak => 'ÇOK ZAYIF',
         _ShotOutcome.goal => 'DENGELİ ŞUT',
         _ShotOutcome.over => 'FAZLA GÜÇLÜ',
+        _ShotOutcome.wide => 'DIŞARI',
       };
     });
     _shotController.forward(from: 0);
@@ -271,7 +270,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     final success = _shotOutcome == _ShotOutcome.goal;
     setState(() {
       _shotAnimating = false;
-      _shotDrag = Offset.zero;
+      _shotAim = 0;
       _shotPower = 0;
       _shotFeedback = success ? 'GOL!' : _shotFeedback;
     });
@@ -439,7 +438,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       _shotAnimating = false;
       _shotOutcome = null;
       _shotFeedback = null;
-      _shotDrag = Offset.zero;
+      _shotAim = 0;
       _shotPower = 0;
       _nextChallenge(initial: true);
     });
@@ -677,13 +676,11 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   Widget _shootingGame() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        _shotFieldWidth = constraints.maxWidth;
         _shotFieldHeight = constraints.maxHeight;
         return GestureDetector(
           key: const Key('shootingSwipeArea'),
           behavior: HitTestBehavior.opaque,
           onPanStart: _beginShot,
-          onPanUpdate: _updateShotDrag,
           onPanEnd: _releaseShot,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(22),
@@ -700,10 +697,10 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
                   ),
                   Positioned(
                     key: const Key('shootingGoal'),
-                    top: 22,
-                    left: constraints.maxWidth * 0.12,
-                    width: constraints.maxWidth * 0.76,
-                    height: constraints.maxHeight * 0.32,
+                    top: 28,
+                    left: constraints.maxWidth * 0.17,
+                    width: constraints.maxWidth * 0.66,
+                    height: constraints.maxHeight * 0.27,
                     child: CustomPaint(painter: const _GoalPainter()),
                   ),
                   if (_shotFeedback != null)
@@ -792,21 +789,26 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     final start = Offset((size.width - ballSize) / 2, size.height - 82);
     if (!_shotAnimating || _shotOutcome == null) return start;
     final t = Curves.easeOut.transform(_shotController.value);
-    final horizontalShift = _shotDrag.dx * 0.28 * t;
+    final goalShift = _shotAim * size.width * 0.22 * t;
+    final missShift = _shotAim.sign * size.width * 0.50 * t;
     return switch (_shotOutcome!) {
       _ShotOutcome.goal => Offset(
-        start.dx + horizontalShift,
+        start.dx + goalShift,
         start.dy - ((start.dy - (size.height * 0.19)) * t) - (sin(pi * t) * 34),
       ),
       _ShotOutcome.weak => Offset(
-        start.dx + horizontalShift,
+        start.dx + goalShift,
         start.dy -
             (sin(pi * t) * size.height * 0.28) -
             (t * size.height * 0.08),
       ),
       _ShotOutcome.over => Offset(
-        start.dx + horizontalShift,
+        start.dx + goalShift,
         start.dy - ((size.height + 70) * t),
+      ),
+      _ShotOutcome.wide => Offset(
+        start.dx + missShift,
+        start.dy - ((start.dy - (size.height * 0.20)) * t),
       ),
     };
   }
@@ -1065,7 +1067,7 @@ class _PaceTarget {
   bool spawnedNext = false;
 }
 
-enum _ShotOutcome { weak, goal, over }
+enum _ShotOutcome { weak, goal, over, wide }
 
 class _ShotPowerMeter extends StatelessWidget {
   const _ShotPowerMeter({required this.power});
