@@ -53,13 +53,11 @@ void main() {
       ),
     );
 
-    for (var index = 0; index < 3; index++) {
-      await tester.tap(find.byKey(const Key('paceLeftButton')));
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.byKey(const Key('paceRightButton')));
-      await tester.pump(const Duration(milliseconds: 50));
+    for (var index = 0; index < 22; index++) {
+      await tester.tap(find.byKey(const Key('paceActiveTarget')));
+      await tester.pump(const Duration(milliseconds: 900));
     }
-    await tester.pump(const Duration(seconds: 20));
+    await tester.pump(const Duration(milliseconds: 250));
     await tester.pump();
 
     expect(find.text('Başarılı antrenman!'), findsOneWidget);
@@ -75,18 +73,17 @@ void main() {
       ),
     );
 
-    for (var index = 0; index < 3; index++) {
-      await tester.tap(find.byKey(const Key('paceLeftButton')));
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.byKey(const Key('paceRightButton')));
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-    for (var index = 0; index < 3; index++) {
-      final wrongButton = find.byKey(const Key('paceRightButton'));
-      if (wrongButton.evaluate().isEmpty) break;
-      await tester.tap(wrongButton);
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget.key is ValueKey<String> &&
+            (widget.key! as ValueKey<String>).value.startsWith('paceTarget'),
+      ),
+      findsNWidgets(9),
+    );
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
 
     expect(find.text('Süre dolmadan 3 hakkın da bitti.'), findsOneWidget);
     expect(find.textContaining('Gelişim kazanamadın'), findsOneWidget);

@@ -64,13 +64,13 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   final Random _random = Random();
   late final AnimationController _meterController;
   Timer? _timer;
+  Timer? _paceTimer;
   Timer? _dribbleTimer;
   DateTime? _lastDribbleTick;
   int _secondsLeft = _duration;
   int _lives = 3;
   int _score = 0;
   int _target = 0;
-  bool _paceLeft = true;
   bool _finished = false;
   bool? _lastSuccess;
   double _dribblePlayerX = 0.5;
@@ -91,6 +91,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     )..repeat(reverse: true);
     _nextChallenge(initial: true);
     _startTimer();
+    _startPaceChallenge();
     _startDribblePhysics();
   }
 
@@ -122,6 +123,46 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       const Duration(milliseconds: 16),
       (_) => _updateDribblePhysics(),
     );
+  }
+
+  void _startPaceChallenge() {
+    if (widget.attribute != TrainingAttribute.pace || _finished) return;
+    _paceTimer?.cancel();
+    _paceTimer = Timer(const Duration(seconds: 1), _missPaceTarget);
+  }
+
+  void _missPaceTarget() {
+    if (!mounted || _finished) return;
+    setState(() {
+      _lastSuccess = false;
+      _lives--;
+      if (_lives > 0) _nextChallenge();
+    });
+    if (_lives <= 0) {
+      _finish();
+    } else {
+      _startPaceChallenge();
+    }
+  }
+
+  void _answerPace(int selectedTarget) {
+    if (_finished) return;
+    _paceTimer?.cancel();
+    final success = selectedTarget == _target;
+    setState(() {
+      _lastSuccess = success;
+      if (success) {
+        _score++;
+      } else {
+        _lives--;
+      }
+      if (_lives > 0) _nextChallenge();
+    });
+    if (_lives <= 0) {
+      _finish();
+    } else {
+      _startPaceChallenge();
+    }
   }
 
   void _spawnDribbleWave({bool initial = false}) {
@@ -227,7 +268,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void _nextChallenge({bool initial = false}) {
     switch (widget.attribute) {
       case TrainingAttribute.pace:
-        if (initial) _paceLeft = _random.nextBool();
+        _target = _differentRandom(9, initial ? -1 : _target);
         break;
       case TrainingAttribute.shooting:
         _target = _differentRandom(9, initial ? -1 : _target);
@@ -261,11 +302,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       } else {
         _lives--;
       }
-      if (widget.attribute == TrainingAttribute.pace && success) {
-        _paceLeft = !_paceLeft;
-      } else {
-        _nextChallenge();
-      }
+      _nextChallenge();
     });
     if (_lives <= 0) _finish();
   }
@@ -273,6 +310,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void _finish() {
     if (_finished) return;
     _timer?.cancel();
+    _paceTimer?.cancel();
     _dribbleTimer?.cancel();
     _meterController.stop();
     setState(() => _finished = true);
@@ -289,6 +327,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     });
     _meterController.repeat(reverse: true);
     _startTimer();
+    _startPaceChallenge();
     _startDribblePhysics();
   }
 
@@ -312,6 +351,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   @override
   void dispose() {
     _timer?.cancel();
+    _paceTimer?.cancel();
     _dribbleTimer?.cancel();
     _meterController.dispose();
     super.dispose();
@@ -438,28 +478,61 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   };
 
   Widget _paceGame() {
-    return Row(
-      children: [
-        Expanded(
-          child: _ActionTile(
-            key: const Key('paceLeftButton'),
-            label: 'SOL',
-            icon: Icons.chevron_left_rounded,
-            active: _paceLeft,
-            onTap: () => _answer(_paceLeft),
+    return Center(
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0D492D),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 9,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemBuilder: (_, index) {
+              final active = index == _target;
+              return InkWell(
+                key: Key('paceTarget$index'),
+                onTap: () => _answerPace(index),
+                borderRadius: BorderRadius.circular(18),
+                child: AnimatedContainer(
+                  key: active ? const Key('paceActiveTarget') : null,
+                  duration: const Duration(milliseconds: 120),
+                  decoration: BoxDecoration(
+                    color: active ? _accent : const Color(0xFF123524),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: active ? _accent : Colors.white12,
+                      width: 2,
+                    ),
+                    boxShadow: active
+                        ? const [
+                            BoxShadow(
+                              color: Color(0x66C8FF4D),
+                              blurRadius: 18,
+                              spreadRadius: 2,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Icon(
+                    active ? Icons.bolt_rounded : Icons.circle_outlined,
+                    size: active ? 42 : 18,
+                    color: active ? const Color(0xFF092115) : Colors.white12,
+                  ),
+                ),
+              );
+            },
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _ActionTile(
-            key: const Key('paceRightButton'),
-            label: 'SAĞ',
-            icon: Icons.chevron_right_rounded,
-            active: !_paceLeft,
-            onTap: () => _answer(!_paceLeft),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -972,61 +1045,6 @@ class _CounterPill extends StatelessWidget {
   }
 }
 
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    super.key,
-    required this.label,
-    required this.icon,
-    required this.active,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        decoration: BoxDecoration(
-          color: active
-              ? const Color(0xFFC8FF4D)
-              : Colors.white.withValues(alpha: 0.045),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: active ? const Color(0xFFC8FF4D) : Colors.white12,
-            width: 2,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 68,
-              color: active ? const Color(0xFF092115) : Colors.white38,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              style: TextStyle(
-                color: active ? const Color(0xFF092115) : Colors.white38,
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _CompactAction extends StatelessWidget {
   const _CompactAction({
     super.key,
@@ -1077,7 +1095,7 @@ class _TrainingInfo {
 _TrainingInfo _trainingInfo(TrainingAttribute attribute) => switch (attribute) {
   TrainingAttribute.pace => const _TrainingInfo(
     title: 'Hız',
-    instruction: 'Parlayan tarafa sırayla dokun.',
+    instruction: 'Parlayan hedefe 1 saniye içinde dokun.',
     icon: Icons.speed_rounded,
   ),
   TrainingAttribute.shooting => const _TrainingInfo(
