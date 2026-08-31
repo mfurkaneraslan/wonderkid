@@ -83,6 +83,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       MaterialPageRoute<TrainingResult>(
         builder: (_) => TrainingGameScreen(
           attribute: attribute,
+          currentStat: currentValue,
           statIncrease: statIncrease,
           playerAvatarAsset: _profile.avatarAssetPath,
         ),

@@ -160,6 +160,30 @@ void main() {
     expect(activeTargets(), findsNWidgets(2));
   });
 
+  testWidgets('higher pace stat shortens the reaction window', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(
+          attribute: TrainingAttribute.pace,
+          currentStat: 40,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(3));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(
+          attribute: TrainingAttribute.pace,
+          currentStat: 90,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(2));
+  });
+
   testWidgets('shooting scores when the swipe reaches the target', (
     tester,
   ) async {
@@ -248,6 +272,32 @@ void main() {
     },
   );
 
+  testWidgets('higher shooting stat makes targets expire sooner', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(
+          attribute: TrainingAttribute.shooting,
+          currentStat: 40,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 2400));
+    expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(3));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(
+          attribute: TrainingAttribute.shooting,
+          currentStat: 90,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 2400));
+    expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(2));
+  });
+
   testWidgets('passing has no timer and completes after four patterns', (
     tester,
   ) async {
@@ -292,6 +342,32 @@ void main() {
     expect(find.byKey(const Key('trainingResult')), findsOneWidget);
     expect(find.text('3 hakkın da bitti.'), findsOneWidget);
     expect(find.textContaining('Gelişim kazanamadın'), findsOneWidget);
+  });
+
+  testWidgets('higher passing stat previews the pattern faster', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(
+          attribute: TrainingAttribute.passing,
+          currentStat: 40,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 2400));
+    expect(find.text('DESENİ İZLE'), findsOneWidget);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(
+          attribute: TrainingAttribute.passing,
+          currentStat: 90,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 2400));
+    expect(find.text('SIRA SENDE'), findsOneWidget);
   });
 
   testWidgets('physical training uses left and right balance controls', (

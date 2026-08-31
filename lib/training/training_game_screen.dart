@@ -45,11 +45,13 @@ class TrainingGameScreen extends StatefulWidget {
   const TrainingGameScreen({
     super.key,
     required this.attribute,
+    this.currentStat = 60,
     this.statIncrease = 1,
     this.playerAvatarAsset,
   });
 
   final TrainingAttribute attribute;
+  final double currentStat;
   final double statIncrease;
   final String? playerAvatarAsset;
 
@@ -117,6 +119,11 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   int _defendingWave = 0;
   final List<_DefendingBall> _defendingBalls = [];
 
+  int get _statDifficultyTier =>
+      ((widget.currentStat - 60) / 10).floor().clamp(-2, 3);
+
+  double get _statDifficultyMultiplier => 1 + (_statDifficultyTier * 0.10);
+
   @override
   void initState() {
     super.initState();
@@ -172,8 +179,12 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       setState(resetPattern);
     }
 
+    final previewDuration = (2800 - (_statDifficultyTier * 250)).clamp(
+      2200,
+      3400,
+    );
     final stepDuration = Duration(
-      milliseconds: (2800 / pattern.length).round(),
+      milliseconds: (previewDuration / pattern.length).round(),
     );
     _passingPreviewTimer = Timer.periodic(stepDuration, (timer) {
       if (!mounted || _finished) {
@@ -262,7 +273,11 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
 
   int? _passingNodeAt(Offset position, Size size) {
     final centers = _passingCenters(size);
-    final hitRadius = min(size.width, size.height) * 0.11;
+    final hitRadiusFactor = (0.11 - (_statDifficultyTier * 0.007)).clamp(
+      0.085,
+      0.125,
+    );
+    final hitRadius = min(size.width, size.height) * hitRadiusFactor;
     for (var index = 0; index < centers.length; index++) {
       if ((position - centers[index]).distance <= hitRadius) return index;
     }
@@ -304,8 +319,13 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       0.0,
       1.0,
     );
-    final difficulty = 1.30 + (elapsedRatio * 2.70);
-    final driftInterval = 0.54 - (elapsedRatio * 0.29);
+    final difficulty =
+        (1.30 + (elapsedRatio * 2.70)) * _statDifficultyMultiplier;
+    final driftInterval =
+        (0.54 - (elapsedRatio * 0.29) - (_statDifficultyTier * 0.025)).clamp(
+          0.18,
+          0.62,
+        );
     var fell = false;
 
     setState(() {
@@ -390,7 +410,14 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       0.0,
       1.0,
     );
-    return Duration(milliseconds: (1000 - (elapsedRatio * 500)).round());
+    final startMilliseconds = 1000 - (_statDifficultyTier * 150);
+    final endMilliseconds = 500 - (_statDifficultyTier * 70);
+    final responseMilliseconds =
+        startMilliseconds -
+        ((startMilliseconds - endMilliseconds) * elapsedRatio);
+    return Duration(
+      milliseconds: responseMilliseconds.round().clamp(280, 1300),
+    );
   }
 
   void _spawnPaceTarget() {
@@ -473,17 +500,24 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       setState(showTarget);
     }
 
-    _shootingTargetTimer = Timer(const Duration(seconds: 3), () {
-      if (!mounted || _finished || !_shotTargetVisible || _shotAnimating) {
-        return;
-      }
-      setState(() {
-        _shotTargetVisible = false;
-        _shotFeedback = 'SÜRE DOLDU';
-      });
-      _answer(false);
-      if (!_finished && _lives > 0) _startShootingTarget();
-    });
+    final targetMilliseconds = (3000 - (_statDifficultyTier * 250)).clamp(
+      2200,
+      3500,
+    );
+    _shootingTargetTimer = Timer(
+      Duration(milliseconds: targetMilliseconds),
+      () {
+        if (!mounted || _finished || !_shotTargetVisible || _shotAnimating) {
+          return;
+        }
+        setState(() {
+          _shotTargetVisible = false;
+          _shotFeedback = 'SÜRE DOLDU';
+        });
+        _answer(false);
+        if (!_finished && _lives > 0) _startShootingTarget();
+      },
+    );
   }
 
   Offset get _shotBallCenter =>
@@ -517,8 +551,9 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       return;
     }
 
+    final minimumSwipeSpeed = 700 + (_statDifficultyTier * 75);
     final swipeSpeed = details.velocity.pixelsPerSecond.distance;
-    if (swipeSpeed < 700) {
+    if (swipeSpeed < minimumSwipeSpeed) {
       setState(() {
         _shotStartedFromBall = false;
         _shotDragEnd = null;
@@ -529,7 +564,9 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
 
     _shootingTargetTimer?.cancel();
     final destination = _shotDragEnd!;
-    final hitTarget = (destination - _shotTargetCenter).distance <= 34;
+    final targetRadius = (34 - (_statDifficultyTier * 2)).clamp(28, 38);
+    final hitTarget =
+        (destination - _shotTargetCenter).distance <= targetRadius;
     setState(() {
       _shotDestination = destination;
       _shotHitTarget = hitTarget;
@@ -554,9 +591,13 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   void _spawnDribbleWave({bool initial = false}) {
+    final difficultyElapsed = max(
+      0.0,
+      _dribbleElapsed + (_statDifficultyTier * 1.5),
+    );
     final count = initial
         ? 1
-        : switch (_dribbleElapsed) {
+        : switch (difficultyElapsed) {
             < 6 => 1,
             < 10 => _dribbleWave.isEven ? 2 : 1,
             _ => 2 + (_dribbleWave % 3),
@@ -602,8 +643,13 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _dribbleElapsed += deltaSeconds;
     _dribbleSpawnElapsed += deltaSeconds;
     _dribbleInvulnerability = max(0, _dribbleInvulnerability - deltaSeconds);
-    final speedMultiplier = 1 + ((_dribbleElapsed / _duration) * 1.1);
-    final spawnInterval = 0.85 - ((_dribbleElapsed / _duration) * 0.4);
+    final progress = (_dribbleElapsed / _duration).clamp(0.0, 1.0);
+    final speedMultiplier = _statDifficultyMultiplier + (progress * 1.1);
+    final spawnInterval =
+        (0.85 - (progress * 0.4) - (_statDifficultyTier * 0.05)).clamp(
+          0.32,
+          0.98,
+        );
     var collision = false;
     final removedCones = <_DribbleCone>[];
 
@@ -679,9 +725,13 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   void _spawnDefendingWave({bool initial = false}) {
+    final difficultyElapsed = max(
+      0.0,
+      _defendingElapsed + (_statDifficultyTier * 1.5),
+    );
     final count = initial
         ? 1
-        : switch (_defendingElapsed) {
+        : switch (difficultyElapsed) {
             < 7 => 1,
             < 13 => _defendingWave.isEven ? 2 : 1,
             _ => 2 + (_defendingWave % 3 == 0 ? 1 : 0),
@@ -719,8 +769,12 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _defendingElapsed += deltaSeconds;
     _defendingSpawnElapsed += deltaSeconds;
     final progress = (_defendingElapsed / _duration).clamp(0.0, 1.0);
-    final speedMultiplier = 1 + (progress * 1.15);
-    final spawnInterval = 1.05 - (progress * 0.48);
+    final speedMultiplier = _statDifficultyMultiplier + (progress * 1.15);
+    final spawnInterval =
+        (1.05 - (progress * 0.48) - (_statDifficultyTier * 0.06)).clamp(
+          0.42,
+          1.18,
+        );
     final removedBalls = <_DefendingBall>[];
 
     setState(() {
