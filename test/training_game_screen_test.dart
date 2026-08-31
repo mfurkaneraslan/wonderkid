@@ -27,6 +27,22 @@ Future<void> _drawPassingPattern(
   await tester.pump();
 }
 
+Future<void> _shootAtTarget(WidgetTester tester) async {
+  final ballCenter = tester.getCenter(find.byKey(const Key('shootingBall')));
+  final targetCenter = tester.getCenter(
+    find.byKey(const Key('shootingTarget')),
+  );
+  final gesture = await tester.startGesture(ballCenter);
+  await gesture.moveTo(
+    targetCenter,
+    timeStamp: const Duration(milliseconds: 180),
+  );
+  await gesture.up();
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 800));
+  await tester.pump();
+}
+
 void main() {
   testWidgets('every attribute opens its own training game', (tester) async {
     for (final attribute in TrainingAttribute.values) {
@@ -59,7 +75,11 @@ void main() {
         ),
       );
 
-      await tester.pump(const Duration(seconds: 20));
+      for (var shot = 0; shot < 4; shot++) {
+        await tester.pump(const Duration(seconds: 4));
+        await _shootAtTarget(tester);
+      }
+      await tester.pump(const Duration(seconds: 1));
       await tester.pump();
 
       expect(find.byKey(const Key('trainingResult')), findsOneWidget);
@@ -148,7 +168,9 @@ void main() {
     expect(activeTargets(), findsNWidgets(2));
   });
 
-  testWidgets('shooting scores with a balanced upward swipe', (tester) async {
+  testWidgets('shooting scores when the swipe reaches the target', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
@@ -157,37 +179,15 @@ void main() {
 
     expect(find.byKey(const Key('shootingGoal')), findsOneWidget);
     expect(find.byKey(const Key('shootingBall')), findsOneWidget);
-    final swipeArea = find.byKey(const Key('shootingSwipeArea'));
-    await tester.fling(swipeArea, const Offset(0, -180), 1200);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 800));
-    await tester.pump();
+    expect(find.byKey(const Key('shootingTarget')), findsOneWidget);
+    await _shootAtTarget(tester);
 
     final feedback = find.byKey(const Key('shotFeedback'));
     expect(feedback, findsOneWidget);
-    expect(tester.widget<Text>(feedback).data, 'GOL!');
+    expect(tester.widget<Text>(feedback).data, 'İSABET!');
   });
 
-  testWidgets('shooting rejects weak and overpowered swipes', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
-      ),
-    );
-
-    final swipeArea = find.byKey(const Key('shootingSwipeArea'));
-    await tester.fling(swipeArea, const Offset(0, -100), 350);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 800));
-    expect(find.text('ÇOK ZAYIF'), findsOneWidget);
-
-    await tester.fling(swipeArea, const Offset(0, -240), 2400);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 800));
-    expect(find.text('FAZLA GÜÇLÜ'), findsOneWidget);
-  });
-
-  testWidgets('shooting cannot be tuned by holding a long drag', (
+  testWidgets('shooting loses a life when the swipe misses the target', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -196,42 +196,36 @@ void main() {
       ),
     );
 
-    final swipeArea = find.byKey(const Key('shootingSwipeArea'));
-    await tester.timedDrag(
-      swipeArea,
-      const Offset(0, -260),
-      const Duration(milliseconds: 900),
+    final ballCenter = tester.getCenter(find.byKey(const Key('shootingBall')));
+    final fieldTopLeft = tester.getTopLeft(
+      find.byKey(const Key('shootingSwipeArea')),
     );
+    final gesture = await tester.startGesture(ballCenter);
+    await gesture.moveTo(fieldTopLeft + const Offset(12, 12));
+    await gesture.up();
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 800));
-
-    expect(find.text('ÇOK ZAYIF'), findsOneWidget);
+    expect(find.text('KAÇTI'), findsOneWidget);
+    expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(2));
   });
 
-  testWidgets('shooting follows the swipe angle and can miss wide', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
-      ),
-    );
+  testWidgets(
+    'shooting loses a life when the target expires after five seconds',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
+        ),
+      );
 
-    final swipeArea = find.byKey(const Key('shootingSwipeArea'));
-
-    await tester.fling(swipeArea, const Offset(-70, -200), 1200);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 800));
-    await tester.pump();
-    final angledFeedback = tester.widget<Text>(
-      find.byKey(const Key('shotFeedback')),
-    );
-    expect(angledFeedback.data, 'GOL!');
-
-    await tester.fling(swipeArea, const Offset(180, -200), 1400);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 800));
-    expect(find.text('DIŞARI'), findsOneWidget);
-  });
+      expect(find.byKey(const Key('shootingTarget')), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+      expect(find.text('SÜRE DOLDU'), findsOneWidget);
+      expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(2));
+      expect(find.byKey(const Key('shootingTarget')), findsOneWidget);
+    },
+  );
 
   testWidgets('passing has no timer and completes after four patterns', (
     tester,

@@ -65,6 +65,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   late final AnimationController _shotController;
   Timer? _timer;
   Timer? _paceTickTimer;
+  Timer? _shootingTargetTimer;
   Timer? _dribbleTimer;
   Timer? _passingPreviewTimer;
   Timer? _physicalTimer;
@@ -78,11 +79,15 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   bool _finished = false;
   bool? _lastSuccess;
   final List<_PaceTarget> _paceTargets = [];
-  double _shotAim = 0;
-  double _shotPower = 0;
+  double _shotFieldWidth = 0;
   double _shotFieldHeight = 0;
   bool _shotAnimating = false;
-  _ShotOutcome? _shotOutcome;
+  bool? _shotHitTarget;
+  bool _shotStartedFromBall = false;
+  bool _shotTargetVisible = false;
+  Offset _shotTarget = const Offset(0.5, 0.5);
+  Offset? _shotDragEnd;
+  Offset _shotDestination = Offset.zero;
   String? _shotFeedback;
   double _dribblePlayerX = 0.5;
   double _dribbleTrackWidth = 0;
@@ -125,6 +130,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _nextChallenge(initial: true);
     _startTimer();
     _startPaceChallenge();
+    _startShootingTarget(initial: true);
     _startDribblePhysics();
     _startPassingPattern(initial: true);
     _startPhysicalBalance(initial: true);
@@ -447,62 +453,90 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     if (_lives <= 0) _finish();
   }
 
-  void _beginShot(DragStartDetails details) {
-    if (_finished || _shotAnimating) return;
-    setState(() {
-      _shotAim = 0;
-      _shotPower = 0;
-      _shotFeedback = null;
+  void _startShootingTarget({bool initial = false}) {
+    if (widget.attribute != TrainingAttribute.shooting || _finished) return;
+    _shootingTargetTimer?.cancel();
+
+    void showTarget() {
+      _shotTarget = Offset(
+        0.14 + (_random.nextDouble() * 0.72),
+        0.16 + (_random.nextDouble() * 0.68),
+      );
+      _shotTargetVisible = true;
+      _shotHitTarget = null;
+      _shotDragEnd = null;
+    }
+
+    if (initial) {
+      showTarget();
+    } else {
+      setState(showTarget);
+    }
+
+    _shootingTargetTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted || _finished || !_shotTargetVisible || _shotAnimating) {
+        return;
+      }
+      setState(() {
+        _shotTargetVisible = false;
+        _shotFeedback = 'SÜRE DOLDU';
+      });
+      _answer(false);
+      if (!_finished && _lives > 0) _startShootingTarget();
     });
   }
 
+  Offset get _shotBallCenter =>
+      Offset(_shotFieldWidth / 2, _shotFieldHeight - 59);
+
+  Offset get _shotTargetCenter => Offset(
+    (_shotFieldWidth * 0.17) + (_shotFieldWidth * 0.66 * _shotTarget.dx),
+    28 + (_shotFieldHeight * 0.27 * _shotTarget.dy),
+  );
+
+  void _beginShot(DragStartDetails details) {
+    if (_finished || _shotAnimating || !_shotTargetVisible) return;
+    _shotStartedFromBall =
+        (details.localPosition - _shotBallCenter).distance <= 38;
+    _shotDragEnd = details.localPosition;
+  }
+
+  void _updateShot(DragUpdateDetails details) {
+    if (!_shotStartedFromBall || _finished || _shotAnimating) return;
+    _shotDragEnd = details.localPosition;
+  }
+
   void _releaseShot(DragEndDetails details) {
-    if (_finished || _shotAnimating || _shotFieldHeight <= 0) return;
-    // Power comes only from the release velocity. Holding the ball or moving it
-    // back and forth therefore cannot be used to tune the shot meter.
-    final upwardVelocity = max(0.0, -details.velocity.pixelsPerSecond.dy);
-    final power = (upwardVelocity / 2400).clamp(0.0, 1.0);
-    final aim = upwardVelocity <= 0
-        ? 0.0
-        : (details.velocity.pixelsPerSecond.dx / upwardVelocity).clamp(
-            -1.4,
-            1.4,
-          );
-    final _ShotOutcome outcome;
-    if (power < 0.28) {
-      outcome = _ShotOutcome.weak;
-    } else if (power > 0.70) {
-      outcome = _ShotOutcome.over;
-    } else if (aim.abs() > 0.65) {
-      outcome = _ShotOutcome.wide;
-    } else {
-      outcome = _ShotOutcome.goal;
+    if (_finished ||
+        _shotAnimating ||
+        !_shotTargetVisible ||
+        !_shotStartedFromBall ||
+        _shotDragEnd == null ||
+        _shotFieldHeight <= 0) {
+      _shotStartedFromBall = false;
+      return;
     }
+
+    _shootingTargetTimer?.cancel();
+    final destination = _shotDragEnd!;
+    final hitTarget = (destination - _shotTargetCenter).distance <= 34;
     setState(() {
-      _shotAim = aim;
-      _shotPower = power;
-      _shotOutcome = outcome;
+      _shotDestination = destination;
+      _shotHitTarget = hitTarget;
+      _shotTargetVisible = false;
       _shotAnimating = true;
-      _shotFeedback = switch (outcome) {
-        _ShotOutcome.weak => 'ÇOK ZAYIF',
-        _ShotOutcome.goal => 'DENGELİ ŞUT',
-        _ShotOutcome.over => 'FAZLA GÜÇLÜ',
-        _ShotOutcome.wide => 'DIŞARI',
-      };
+      _shotStartedFromBall = false;
+      _shotFeedback = hitTarget ? 'İSABET!' : 'KAÇTI';
     });
     _shotController.forward(from: 0);
   }
 
   void _completeShot() {
     if (!mounted || _finished || !_shotAnimating) return;
-    final success = _shotOutcome == _ShotOutcome.goal;
-    setState(() {
-      _shotAnimating = false;
-      _shotAim = 0;
-      _shotPower = 0;
-      _shotFeedback = success ? 'GOL!' : _shotFeedback;
-    });
+    final success = _shotHitTarget == true;
+    setState(() => _shotAnimating = false);
     _answer(success);
+    if (!_finished && _lives > 0) _startShootingTarget();
   }
 
   void _spawnDribbleWave({bool initial = false}) {
@@ -725,7 +759,6 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       case TrainingAttribute.pace:
         break;
       case TrainingAttribute.shooting:
-        _target = _differentRandom(9, initial ? -1 : _target);
         break;
       case TrainingAttribute.passing:
         _target = _differentRandom(4, initial ? -1 : _target);
@@ -764,6 +797,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     if (_finished) return;
     _timer?.cancel();
     _paceTickTimer?.cancel();
+    _shootingTargetTimer?.cancel();
     _dribbleTimer?.cancel();
     _passingPreviewTimer?.cancel();
     _physicalTimer?.cancel();
@@ -782,10 +816,12 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       _finished = false;
       _lastSuccess = null;
       _shotAnimating = false;
-      _shotOutcome = null;
+      _shotHitTarget = null;
+      _shotStartedFromBall = false;
+      _shotTargetVisible = false;
+      _shotDragEnd = null;
+      _shotDestination = Offset.zero;
       _shotFeedback = null;
-      _shotAim = 0;
-      _shotPower = 0;
       _passingPattern = [];
       _passingInput.clear();
       _passingRevealStep = 0;
@@ -808,6 +844,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _shotController.reset();
     _startTimer();
     _startPaceChallenge();
+    _startShootingTarget(initial: true);
     _startDribblePhysics();
     _startPassingPattern(initial: true);
     _startPhysicalBalance(initial: true);
@@ -839,6 +876,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void dispose() {
     _timer?.cancel();
     _paceTickTimer?.cancel();
+    _shootingTargetTimer?.cancel();
     _dribbleTimer?.cancel();
     _passingPreviewTimer?.cancel();
     _physicalTimer?.cancel();
@@ -1062,11 +1100,13 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   Widget _shootingGame() {
     return LayoutBuilder(
       builder: (context, constraints) {
+        _shotFieldWidth = constraints.maxWidth;
         _shotFieldHeight = constraints.maxHeight;
         return GestureDetector(
           key: const Key('shootingSwipeArea'),
           behavior: HitTestBehavior.opaque,
           onPanStart: _beginShot,
+          onPanUpdate: _updateShot,
           onPanEnd: _releaseShot,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(22),
@@ -1089,6 +1129,36 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
                     height: constraints.maxHeight * 0.27,
                     child: CustomPaint(painter: const _GoalPainter()),
                   ),
+                  if (_shotTargetVisible)
+                    Positioned(
+                      left: _shotTargetCenter.dx - 28,
+                      top: _shotTargetCenter.dy - 28,
+                      width: 56,
+                      height: 56,
+                      child: Container(
+                        key: const Key('shootingTarget'),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFFF5E72).withValues(alpha: 0.2),
+                          border: Border.all(
+                            color: const Color(0xFFFF5E72),
+                            width: 3,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x66FF5E72), blurRadius: 14),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 18,
+                          height: 18,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFFFF5E72),
+                          ),
+                        ),
+                      ),
+                    ),
                   if (_shotFeedback != null)
                     Positioned(
                       top: constraints.maxHeight * 0.38,
@@ -1099,7 +1169,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
                         key: const Key('shotFeedback'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: _shotOutcome == _ShotOutcome.goal
+                          color: _shotHitTarget == true
                               ? _accent
                               : const Color(0xFFFF8A65),
                           fontSize: 14,
@@ -1108,13 +1178,6 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
                         ),
                       ),
                     ),
-                  Positioned(
-                    right: 14,
-                    bottom: 52,
-                    width: 12,
-                    height: constraints.maxHeight * 0.32,
-                    child: _ShotPowerMeter(power: _shotPower),
-                  ),
                   AnimatedBuilder(
                     animation: _shotController,
                     builder: (context, child) {
@@ -1151,7 +1214,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
                     right: 0,
                     bottom: 12,
                     child: Text(
-                      'TEK HAMLEDE YUKARI SWIPE’LA',
+                      'TOPTAN HEDEFE SWIPE’LA',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white54,
@@ -1173,30 +1236,11 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   Offset _shotBallPosition(Size size) {
     const ballSize = 46.0;
     final start = Offset((size.width - ballSize) / 2, size.height - 82);
-    if (!_shotAnimating || _shotOutcome == null) return start;
+    if (!_shotAnimating) return start;
     final t = Curves.easeOut.transform(_shotController.value);
-    final goalShift = _shotAim * size.width * 0.22 * t;
-    final missShift = _shotAim.sign * size.width * 0.50 * t;
-    return switch (_shotOutcome!) {
-      _ShotOutcome.goal => Offset(
-        start.dx + goalShift,
-        start.dy - ((start.dy - (size.height * 0.19)) * t) - (sin(pi * t) * 34),
-      ),
-      _ShotOutcome.weak => Offset(
-        start.dx + goalShift,
-        start.dy -
-            (sin(pi * t) * size.height * 0.28) -
-            (t * size.height * 0.08),
-      ),
-      _ShotOutcome.over => Offset(
-        start.dx + goalShift,
-        start.dy - ((size.height + 70) * t),
-      ),
-      _ShotOutcome.wide => Offset(
-        start.dx + missShift,
-        start.dy - ((start.dy - (size.height * 0.20)) * t),
-      ),
-    };
+    final end = _shotDestination - const Offset(ballSize / 2, ballSize / 2);
+    final position = Offset.lerp(start, end, t)!;
+    return position.translate(0, -sin(pi * t) * 28);
   }
 
   Widget _passingGame() {
@@ -1824,37 +1868,6 @@ class _BalanceControlButton extends StatelessWidget {
   }
 }
 
-enum _ShotOutcome { weak, goal, over, wide }
-
-class _ShotPowerMeter extends StatelessWidget {
-  const _ShotPowerMeter({required this.power});
-
-  final double power;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Stack(
-        alignment: Alignment.bottomCenter,
-        children: [
-          const Column(
-            children: [
-              Expanded(child: ColoredBox(color: Color(0x55FF7043))),
-              Expanded(child: ColoredBox(color: Color(0x668BC34A))),
-              Expanded(child: ColoredBox(color: Color(0x55FFC107))),
-            ],
-          ),
-          FractionallySizedBox(
-            heightFactor: power,
-            child: Container(color: Colors.white.withValues(alpha: 0.82)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _GoalPainter extends CustomPainter {
   const _GoalPainter();
 
@@ -2266,7 +2279,7 @@ _TrainingInfo _trainingInfo(TrainingAttribute attribute) => switch (attribute) {
   ),
   TrainingAttribute.shooting => const _TrainingInfo(
     title: 'Şut',
-    instruction: 'Topu dengeli güçle swipe’la, yere değmeden gol at.',
+    instruction: 'Hedef kaybolmadan topu hedefe doğru swipe’la.',
     icon: Icons.sports_soccer_rounded,
   ),
   TrainingAttribute.passing => const _TrainingInfo(
