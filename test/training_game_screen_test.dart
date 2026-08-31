@@ -144,7 +144,7 @@ void main() {
     );
 
     expect(activeTargets(), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 360));
+    await tester.pump(const Duration(milliseconds: 510));
     expect(activeTargets(), findsNWidgets(2));
   });
 

@@ -368,7 +368,6 @@ class _TrainingTab extends StatelessWidget {
             key: const Key('paceTrainingCard'),
             icon: Icons.speed_rounded,
             title: 'Hız',
-            detail: 'Sprint ritmini yakala',
             onTap: () => onStartTraining(TrainingAttribute.pace),
           ),
           const SizedBox(height: 8),
@@ -376,7 +375,6 @@ class _TrainingTab extends StatelessWidget {
             key: const Key('shootingTrainingCard'),
             icon: Icons.sports_soccer_rounded,
             title: 'Şut',
-            detail: 'Kalede doğru köşeyi bul',
             onTap: () => onStartTraining(TrainingAttribute.shooting),
           ),
           const SizedBox(height: 8),
@@ -384,7 +382,6 @@ class _TrainingTab extends StatelessWidget {
             key: const Key('passingTrainingCard'),
             icon: Icons.route_rounded,
             title: 'Pas',
-            detail: 'İşaretlenen oyuncuyu bul',
             onTap: () => onStartTraining(TrainingAttribute.passing),
           ),
           const SizedBox(height: 8),
@@ -392,7 +389,6 @@ class _TrainingTab extends StatelessWidget {
             key: const Key('dribblingTrainingCard'),
             icon: Icons.multiple_stop_rounded,
             title: 'Dribbling',
-            detail: 'Koniler arasından sıyrıl',
             onTap: () => onStartTraining(TrainingAttribute.dribbling),
           ),
           const SizedBox(height: 8),
@@ -400,7 +396,6 @@ class _TrainingTab extends StatelessWidget {
             key: const Key('defendingTrainingCard'),
             icon: Icons.shield_outlined,
             title: 'Defans',
-            detail: 'Rakibin hamlesini karşıla',
             onTap: () => onStartTraining(TrainingAttribute.defending),
           ),
           const SizedBox(height: 8),
@@ -408,7 +403,6 @@ class _TrainingTab extends StatelessWidget {
             key: const Key('physicalTrainingCard'),
             icon: Icons.fitness_center_rounded,
             title: 'Fizik',
-            detail: 'Güç göstergesini dengede tut',
             onTap: () => onStartTraining(TrainingAttribute.physical),
           ),
           const SizedBox(height: 18),
@@ -1462,13 +1456,11 @@ class _TrainingCard extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
-    required this.detail,
     required this.onTap,
   });
 
   final IconData icon;
   final String title;
-  final String detail;
   final VoidCallback onTap;
 
   @override
@@ -1498,22 +1490,9 @@ class _TrainingCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      detail,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.42),
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
               Column(
