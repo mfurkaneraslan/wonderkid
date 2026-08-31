@@ -473,7 +473,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       setState(showTarget);
     }
 
-    _shootingTargetTimer = Timer(const Duration(seconds: 5), () {
+    _shootingTargetTimer = Timer(const Duration(seconds: 3), () {
       if (!mounted || _finished || !_shotTargetVisible || _shotAnimating) {
         return;
       }
@@ -517,6 +517,16 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       return;
     }
 
+    final swipeSpeed = details.velocity.pixelsPerSecond.distance;
+    if (swipeSpeed < 700) {
+      setState(() {
+        _shotStartedFromBall = false;
+        _shotDragEnd = null;
+        _shotFeedback = 'DAHA HIZLI SWIPE YAP';
+      });
+      return;
+    }
+
     _shootingTargetTimer?.cancel();
     final destination = _shotDragEnd!;
     final hitTarget = (destination - _shotTargetCenter).distance <= 34;
@@ -536,6 +546,10 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     final success = _shotHitTarget == true;
     setState(() => _shotAnimating = false);
     _answer(success);
+    if (success && _score >= 10) {
+      _finish();
+      return;
+    }
     if (!_finished && _lives > 0) _startShootingTarget();
   }
 
@@ -852,22 +866,26 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   TrainingResult get _result {
-    final grade = widget.attribute == TrainingAttribute.passing
-        ? (_score >= 4 ? 'A' : 'D')
-        : switch (_score) {
-            >= 18 => 'S',
-            >= 14 => 'A',
-            >= 10 => 'B',
-            >= 5 => 'C',
-            _ => 'D',
-          };
+    final grade = switch (widget.attribute) {
+      TrainingAttribute.passing => _score >= 4 ? 'A' : 'D',
+      TrainingAttribute.shooting => _score >= 10 ? 'A' : 'D',
+      _ => switch (_score) {
+        >= 18 => 'S',
+        >= 14 => 'A',
+        >= 10 => 'B',
+        >= 5 => 'C',
+        _ => 'D',
+      },
+    };
     return TrainingResult(
       attribute: widget.attribute,
       score: _score,
       grade: grade,
-      isSuccessful: widget.attribute == TrainingAttribute.passing
-          ? _score >= 4 && _lives > 0
-          : _secondsLeft == 0 && _lives > 0,
+      isSuccessful: switch (widget.attribute) {
+        TrainingAttribute.passing => _score >= 4 && _lives > 0,
+        TrainingAttribute.shooting => _score >= 10 && _lives > 0,
+        _ => _secondsLeft == 0 && _lives > 0,
+      },
       statIncrease: widget.statIncrease,
     );
   }
@@ -963,9 +981,11 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
             _CounterPill(
               key: const Key('trainingScore'),
               icon: Icons.stars_rounded,
-              text: widget.attribute == TrainingAttribute.passing
-                  ? '$_score/4'
-                  : '$_score',
+              text: switch (widget.attribute) {
+                TrainingAttribute.passing => '$_score/4',
+                TrainingAttribute.shooting => '$_score/10',
+                _ => '$_score',
+              },
             ),
           ],
         ),
@@ -2279,7 +2299,7 @@ _TrainingInfo _trainingInfo(TrainingAttribute attribute) => switch (attribute) {
   ),
   TrainingAttribute.shooting => const _TrainingInfo(
     title: 'Şut',
-    instruction: 'Hedef kaybolmadan topu hedefe doğru swipe’la.',
+    instruction: 'Hedef kaybolmadan hızlı swipe yap. 10 hedefi vur.',
     icon: Icons.sports_soccer_rounded,
   ),
   TrainingAttribute.passing => const _TrainingInfo(

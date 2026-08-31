@@ -32,12 +32,7 @@ Future<void> _shootAtTarget(WidgetTester tester) async {
   final targetCenter = tester.getCenter(
     find.byKey(const Key('shootingTarget')),
   );
-  final gesture = await tester.startGesture(ballCenter);
-  await gesture.moveTo(
-    targetCenter,
-    timeStamp: const Duration(milliseconds: 180),
-  );
-  await gesture.up();
+  await tester.flingFrom(ballCenter, targetCenter - ballCenter, 1800);
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 800));
   await tester.pump();
@@ -66,29 +61,26 @@ void main() {
     }
   });
 
-  testWidgets(
-    'training finishes successfully when the 20 second timer expires',
-    (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
-        ),
-      );
+  testWidgets('shooting finishes successfully after ten fast hits', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
+      ),
+    );
 
-      for (var shot = 0; shot < 4; shot++) {
-        await tester.pump(const Duration(seconds: 4));
-        await _shootAtTarget(tester);
-      }
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump();
+    for (var shot = 0; shot < 10; shot++) {
+      await _shootAtTarget(tester);
+    }
 
-      expect(find.byKey(const Key('trainingResult')), findsOneWidget);
-      expect(find.text('ANTRENMAN TAMAMLANDI'), findsOneWidget);
-      expect(find.byKey(const Key('retryTrainingButton')), findsOneWidget);
-      expect(find.byKey(const Key('finishTrainingButton')), findsOneWidget);
-      expect(find.text('Başarılı antrenman!'), findsOneWidget);
-    },
-  );
+    expect(find.byKey(const Key('trainingResult')), findsOneWidget);
+    expect(find.text('ANTRENMAN TAMAMLANDI'), findsOneWidget);
+    expect(find.byKey(const Key('retryTrainingButton')), findsOneWidget);
+    expect(find.byKey(const Key('finishTrainingButton')), findsOneWidget);
+    expect(find.text('Başarılı antrenman!'), findsOneWidget);
+    expect(find.textContaining('10 doğru hamle'), findsOneWidget);
+  });
 
   testWidgets('successful training shows the tiered stat reward', (
     tester,
@@ -185,6 +177,33 @@ void main() {
     final feedback = find.byKey(const Key('shotFeedback'));
     expect(feedback, findsOneWidget);
     expect(tester.widget<Text>(feedback).data, 'İSABET!');
+    expect(find.text('1/10'), findsOneWidget);
+  });
+
+  testWidgets('shooting ignores a slow drag and keeps the target active', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
+      ),
+    );
+
+    final ballCenter = tester.getCenter(find.byKey(const Key('shootingBall')));
+    final targetCenter = tester.getCenter(
+      find.byKey(const Key('shootingTarget')),
+    );
+    await tester.timedDragFrom(
+      ballCenter,
+      targetCenter - ballCenter,
+      const Duration(seconds: 1),
+    );
+    await tester.pump();
+
+    expect(find.text('DAHA HIZLI SWIPE YAP'), findsOneWidget);
+    expect(find.text('0/10'), findsOneWidget);
+    expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(3));
+    expect(find.byKey(const Key('shootingTarget')), findsOneWidget);
   });
 
   testWidgets('shooting loses a life when the swipe misses the target', (
@@ -200,9 +219,11 @@ void main() {
     final fieldTopLeft = tester.getTopLeft(
       find.byKey(const Key('shootingSwipeArea')),
     );
-    final gesture = await tester.startGesture(ballCenter);
-    await gesture.moveTo(fieldTopLeft + const Offset(12, 12));
-    await gesture.up();
+    await tester.flingFrom(
+      ballCenter,
+      (fieldTopLeft + const Offset(12, 12)) - ballCenter,
+      1800,
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.text('KAÇTI'), findsOneWidget);
@@ -210,7 +231,7 @@ void main() {
   });
 
   testWidgets(
-    'shooting loses a life when the target expires after five seconds',
+    'shooting loses a life when the target expires after three seconds',
     (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -219,7 +240,7 @@ void main() {
       );
 
       expect(find.byKey(const Key('shootingTarget')), findsOneWidget);
-      await tester.pump(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 3));
       await tester.pump();
       expect(find.text('SÜRE DOLDU'), findsOneWidget);
       expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(2));
