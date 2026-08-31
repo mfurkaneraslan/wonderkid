@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wonderkid/career/career_profile.dart';
 import 'package:wonderkid/career/career_save_repository.dart';
+import 'package:wonderkid/career/career_shop_state.dart';
 import 'package:wonderkid/career/offer_generator.dart';
 import 'package:wonderkid/data/football_repository.dart';
 
@@ -26,12 +27,18 @@ void main() {
     ).first;
 
     final trainedProfile = profile.increaseAttribute('shooting');
+    final shopState = CareerShopState.initial(offer.weeklySalaryEuro).purchase(
+      categoryId: 'vehicles',
+      level: 3,
+      priceEuro: offer.weeklySalaryEuro * 3,
+    );
     await CareerSaveRepository.save(
       profile: trainedProfile,
       offer: offer,
       currentWeek: 4,
       lastTrainingWeek: 3,
       lastTrainingAttribute: 'shooting',
+      shopState: shopState,
     );
     final savedCareer = await CareerSaveRepository.load();
 
@@ -43,6 +50,8 @@ void main() {
     expect(savedCareer.currentWeek, 4);
     expect(savedCareer.lastTrainingWeek, 3);
     expect(savedCareer.lastTrainingAttribute, 'shooting');
+    expect(savedCareer.shopState.balanceEuro, shopState.balanceEuro);
+    expect(savedCareer.shopState.levelFor('vehicles'), 3);
     expect(savedCareer.offer.club.id, offer.club.id);
     expect(savedCareer.offer.league.id, offer.league.id);
     expect(savedCareer.offer.weeklySalaryEuro, offer.weeklySalaryEuro);
@@ -61,5 +70,20 @@ void main() {
     expect(formatCareerAttribute(80), '80');
     expect(formatCareerAttribute(80.5), '80,5');
     expect(formatCareerAttribute(90.33), '90,33');
+  });
+
+  test('shop bonuses add an exact amount and respect the stat cap', () {
+    final profile = CareerProfile.create(
+      name: 'Shop Test',
+      nationality: 'Türkiye',
+      shirtNumber: 10,
+      position: 'ST',
+    );
+
+    final boosted = profile.increaseAttributeBy('pace', 5);
+    expect(boosted.pace, profile.pace + 5);
+
+    final capped = boosted.increaseAttributeBy('pace', 50);
+    expect(capped.pace, 99);
   });
 }

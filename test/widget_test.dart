@@ -334,10 +334,7 @@ void main() {
     expect(find.byKey(const Key('passingTrainingCard')), findsOneWidget);
     expect(find.byKey(const Key('dribblingTrainingCard')), findsOneWidget);
     expect(find.byKey(const Key('defendingTrainingCard')), findsOneWidget);
-    await tester.drag(
-      find.byType(ListView),
-      const Offset(0, -420),
-    );
+    await tester.drag(find.byType(ListView), const Offset(0, -420));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('physicalTrainingCard')), findsOneWidget);
 
@@ -370,5 +367,23 @@ void main() {
     await tester.tap(find.byKey(const Key('shopTab')));
     await tester.pumpAndSettle();
     expect(find.text('KATEGORİLER'), findsOneWidget);
+    expect(find.byKey(const Key('shopCategory_vehicles')), findsOneWidget);
+    expect(find.byKey(const Key('shopCategory_homes')), findsOneWidget);
+    expect(find.text('Şehir Otomobili'), findsOneWidget);
+    expect(find.text('Sportif Hatchback'), findsOneWidget);
+    expect(find.text('+0 PAC'), findsOneWidget);
+    expect(find.text('€270.000'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('buyShopItem_vehicle_1')));
+    await tester.pumpAndSettle();
+    expect(find.text('+1 PAC'), findsNWidgets(2));
+    expect(find.text('SAHİP'), findsOneWidget);
+    expect(find.text('€261.000'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('shopCategory_homes')));
+    await tester.pumpAndSettle();
+    expect(find.text('Stüdyo Daire'), findsOneWidget);
+    expect(find.text('Şehir Dairesi'), findsOneWidget);
+    expect(find.text('+0 PHY'), findsOneWidget);
   });
 }

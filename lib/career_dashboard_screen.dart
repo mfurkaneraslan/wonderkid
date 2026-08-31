@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'career/career_profile.dart';
 import 'career/career_save_repository.dart';
+import 'career/career_shop_state.dart';
 import 'career/fixture_generator.dart';
 import 'career/offer_generator.dart';
 import 'data/football_repository.dart';
@@ -15,6 +16,7 @@ class CareerDashboardScreen extends StatefulWidget {
     this.currentWeek = 1,
     this.lastTrainingWeek,
     this.lastTrainingAttribute,
+    this.shopState,
   });
 
   final CareerProfile profile;
@@ -22,6 +24,7 @@ class CareerDashboardScreen extends StatefulWidget {
   final int currentWeek;
   final int? lastTrainingWeek;
   final String? lastTrainingAttribute;
+  final CareerShopState? shopState;
 
   @override
   State<CareerDashboardScreen> createState() => _CareerDashboardScreenState();
@@ -32,13 +35,19 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
   int _selectedIndex = 0;
   late CareerProfile _profile;
   late int? _lastTrainingWeek;
+  late String? _lastTrainingAttribute;
   late final CareerSeasonFixture _fixture;
+  late CareerShopState _shopState;
 
   @override
   void initState() {
     super.initState();
     _profile = widget.profile;
     _lastTrainingWeek = widget.lastTrainingWeek;
+    _lastTrainingAttribute = widget.lastTrainingAttribute;
+    _shopState =
+        widget.shopState ??
+        CareerShopState.initial(widget.offer.weeklySalaryEuro);
     _fixture = CareerFixtureGenerator.generate(
       league: widget.offer.league,
       club: widget.offer.club,
@@ -96,6 +105,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
     setState(() {
       _profile = updatedProfile;
       _lastTrainingWeek = widget.currentWeek;
+      _lastTrainingAttribute = attribute.name;
     });
     await CareerSaveRepository.save(
       profile: updatedProfile,
@@ -103,6 +113,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       currentWeek: widget.currentWeek,
       lastTrainingWeek: widget.currentWeek,
       lastTrainingAttribute: attribute.name,
+      shopState: _shopState,
     );
     if (!mounted) return;
     final message = result.isSuccessful
@@ -115,6 +126,62 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
           behavior: SnackBarBehavior.floating,
           backgroundColor: const Color(0xFF183A29),
           content: Text(message),
+        ),
+      );
+  }
+
+  Future<void> _buyShopItem(_ShopItem item) async {
+    final currentLevel = _shopState.levelFor(item.categoryId);
+    if (item.bonus <= currentLevel) return;
+    final price = item.priceFor(
+      widget.offer.weeklySalaryEuro,
+      currentLevel: currentLevel,
+    );
+    if (_shopState.balanceEuro < price) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Color(0xFF183A29),
+            content: Text('Bu ürün için bakiyen yeterli değil.'),
+          ),
+        );
+      return;
+    }
+
+    final bonusIncrease = item.bonus - currentLevel;
+    final updatedProfile = _profile.increaseAttributeBy(
+      item.attribute,
+      bonusIncrease.toDouble(),
+    );
+    final updatedShopState = _shopState.purchase(
+      categoryId: item.categoryId,
+      level: item.bonus,
+      priceEuro: price,
+    );
+    setState(() {
+      _profile = updatedProfile;
+      _shopState = updatedShopState;
+    });
+    await CareerSaveRepository.save(
+      profile: updatedProfile,
+      offer: widget.offer,
+      currentWeek: widget.currentWeek,
+      lastTrainingWeek: _lastTrainingWeek,
+      lastTrainingAttribute: _lastTrainingAttribute,
+      shopState: updatedShopState,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF183A29),
+          content: Text(
+            '${item.name} alındı • ${_attributeShortLabel(item.attribute)} +$bonusIncrease',
+          ),
         ),
       );
   }
@@ -141,7 +208,11 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
         onOpenFixture: _showFixture,
         onOpenStandings: _showStandings,
       ),
-      const _ShopTab(),
+      _ShopTab(
+        shopState: _shopState,
+        weeklySalaryEuro: widget.offer.weeklySalaryEuro,
+        onBuy: _buyShopItem,
+      ),
     ];
 
     return Scaffold(
@@ -503,72 +574,119 @@ class _TeamTab extends StatelessWidget {
   }
 }
 
-class _ShopTab extends StatelessWidget {
-  const _ShopTab();
+class _ShopTab extends StatefulWidget {
+  const _ShopTab({
+    required this.shopState,
+    required this.weeklySalaryEuro,
+    required this.onBuy,
+  });
+
+  final CareerShopState shopState;
+  final int weeklySalaryEuro;
+  final Future<void> Function(_ShopItem item) onBuy;
+
+  @override
+  State<_ShopTab> createState() => _ShopTabState();
+}
+
+class _ShopTabState extends State<_ShopTab> {
+  int _selectedCategory = 0;
 
   @override
   Widget build(BuildContext context) {
-    return const _PageFrame(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(16, 4, 16, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _StatusBanner(
-              icon: Icons.account_balance_wallet_outlined,
-              title: 'BAKİYE',
-              value: '€0',
-              subtitle: 'Maaş ödemeleriyle bakiyen artacak.',
+    final category = _shopCategories[_selectedCategory];
+    final currentLevel = widget.shopState.levelFor(category.id);
+    return _PageFrame(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        children: [
+          _StatusBanner(
+            icon: Icons.account_balance_wallet_outlined,
+            title: 'BAKİYE',
+            value: _formatEuro(widget.shopState.balanceEuro),
+            subtitle:
+                'Başlangıç bütçesi • Haftalık maaş ${_formatEuro(widget.weeklySalaryEuro)}',
+          ),
+          const SizedBox(height: 18),
+          const _SectionTitle(title: 'KATEGORİLER'),
+          const SizedBox(height: 9),
+          SizedBox(
+            height: 74,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _shopCategories.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final item = _shopCategories[index];
+                final selected = index == _selectedCategory;
+                return _ShopCategoryChip(
+                  key: Key('shopCategory_${item.id}'),
+                  category: item,
+                  selected: selected,
+                  level: widget.shopState.levelFor(item.id),
+                  onTap: () => setState(() => _selectedCategory = index),
+                );
+              },
             ),
-            SizedBox(height: 18),
-            _SectionTitle(title: 'KATEGORİLER'),
-            SizedBox(height: 9),
-            Row(
-              children: [
-                Expanded(
-                  child: _ShopCategory(
-                    icon: Icons.ice_skating_outlined,
-                    title: 'Krampon',
-                    subtitle: 'Performans',
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category.title.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${category.attributeLabel} bonusu • Mevcut +$currentLevel / +5',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.42),
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFC8FF4D).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '+$currentLevel ${_attributeShortLabel(category.attribute)}',
+                  style: const TextStyle(
+                    color: Color(0xFFC8FF4D),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(width: 9),
-                Expanded(
-                  child: _ShopCategory(
-                    icon: Icons.watch_outlined,
-                    title: 'Aksesuar',
-                    subtitle: 'Stil',
-                  ),
-                ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (final item in category.items) ...[
+            _ShopItemCard(
+              item: item,
+              currentLevel: currentLevel,
+              balanceEuro: widget.shopState.balanceEuro,
+              weeklySalaryEuro: widget.weeklySalaryEuro,
+              onBuy: widget.onBuy,
             ),
-            SizedBox(height: 9),
-            Row(
-              children: [
-                Expanded(
-                  child: _ShopCategory(
-                    icon: Icons.directions_car_outlined,
-                    title: 'Araçlar',
-                    subtitle: 'Yaşam tarzı',
-                  ),
-                ),
-                SizedBox(width: 9),
-                Expanded(
-                  child: _ShopCategory(
-                    icon: Icons.home_outlined,
-                    title: 'Evler',
-                    subtitle: 'Yaşam tarzı',
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 18),
-            _InfoPanel(
-              icon: Icons.lock_outline_rounded,
-              text: 'Alışveriş ürünleri kariyer ilerledikçe ve maaş kazandıkça açılacak.',
-            ),
+            const SizedBox(height: 8),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -1615,33 +1733,185 @@ class _AttributeGrid extends StatelessWidget {
   }
 }
 
-class _ShopCategory extends StatelessWidget {
-  const _ShopCategory({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
+class _ShopCategoryChip extends StatelessWidget {
+  const _ShopCategoryChip({
+    super.key,
+    required this.category,
+    required this.selected,
+    required this.level,
+    required this.onTap,
   });
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
+  final _ShopCategory category;
+  final bool selected;
+  final int level;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    return Material(
+      color: selected
+          ? const Color(0xFFC8FF4D)
+          : Colors.white.withValues(alpha: 0.045),
+      borderRadius: BorderRadius.circular(15),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          width: 112,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              color: selected
+                  ? Colors.transparent
+                  : Colors.white.withValues(alpha: 0.08),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                category.icon,
+                color: selected
+                    ? const Color(0xFF092115)
+                    : const Color(0xFFC8FF4D),
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected
+                            ? const Color(0xFF092115)
+                            : Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '+$level / +5',
+                      style: TextStyle(
+                        color: selected
+                            ? const Color(0xAA092115)
+                            : Colors.white38,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShopItemCard extends StatelessWidget {
+  const _ShopItemCard({
+    required this.item,
+    required this.currentLevel,
+    required this.balanceEuro,
+    required this.weeklySalaryEuro,
+    required this.onBuy,
+  });
+
+  final _ShopItem item;
+  final int currentLevel;
+  final int balanceEuro;
+  final int weeklySalaryEuro;
+  final Future<void> Function(_ShopItem item) onBuy;
+
+  @override
+  Widget build(BuildContext context) {
+    final owned = currentLevel >= item.bonus;
+    final price = item.priceFor(weeklySalaryEuro, currentLevel: currentLevel);
+    final affordable = balanceEuro >= price;
     return _Panel(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.all(12),
+      child: Row(
         children: [
-          Icon(icon, color: const Color(0xFFC8FF4D), size: 28),
-          const SizedBox(height: 18),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.4),
-              fontSize: 10,
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFC8FF4D).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(item.icon, color: const Color(0xFFC8FF4D), size: 25),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      '+${item.bonus} ${_attributeShortLabel(item.attribute)}',
+                      style: const TextStyle(
+                        color: Color(0xFFC8FF4D),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      owned ? 'ALINDI' : _formatEuro(price),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.42),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 36,
+            child: FilledButton(
+              key: Key('buyShopItem_${item.id}'),
+              onPressed: owned || !affordable ? null : () async => onBuy(item),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFC8FF4D),
+                foregroundColor: const Color(0xFF092115),
+                disabledBackgroundColor: Colors.white.withValues(alpha: 0.06),
+                disabledForegroundColor: Colors.white30,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              child: Text(
+                owned
+                    ? 'SAHİP'
+                    : affordable
+                    ? 'SATIN AL'
+                    : 'YETERSİZ',
+                style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
           ),
         ],
@@ -1649,6 +1919,355 @@ class _ShopCategory extends StatelessWidget {
     );
   }
 }
+
+class _ShopCategory {
+  const _ShopCategory({
+    required this.id,
+    required this.title,
+    required this.attribute,
+    required this.attributeLabel,
+    required this.icon,
+    required this.items,
+  });
+
+  final String id;
+  final String title;
+  final String attribute;
+  final String attributeLabel;
+  final IconData icon;
+  final List<_ShopItem> items;
+}
+
+class _ShopItem {
+  const _ShopItem({
+    required this.id,
+    required this.categoryId,
+    required this.name,
+    required this.attribute,
+    required this.bonus,
+    required this.icon,
+  });
+
+  final String id;
+  final String categoryId;
+  final String name;
+  final String attribute;
+  final int bonus;
+  final IconData icon;
+
+  int priceFor(int weeklySalaryEuro, {required int currentLevel}) {
+    final upgradeLevels = bonus - currentLevel;
+    if (upgradeLevels <= 0) return 0;
+    return ((weeklySalaryEuro * upgradeLevels) / 250).round() * 250;
+  }
+}
+
+String _attributeShortLabel(String attribute) => switch (attribute) {
+  'pace' => 'PAC',
+  'shooting' => 'SHO',
+  'passing' => 'PAS',
+  'dribbling' => 'DRI',
+  'defending' => 'DEF',
+  'physical' => 'PHY',
+  _ => attribute.toUpperCase(),
+};
+
+const _shopCategories = <_ShopCategory>[
+  _ShopCategory(
+    id: 'vehicles',
+    title: 'Araçlar',
+    attribute: 'pace',
+    attributeLabel: 'Hız',
+    icon: Icons.directions_car_outlined,
+    items: [
+      _ShopItem(
+        id: 'vehicle_1',
+        categoryId: 'vehicles',
+        name: 'Şehir Otomobili',
+        attribute: 'pace',
+        bonus: 1,
+        icon: Icons.directions_car_outlined,
+      ),
+      _ShopItem(
+        id: 'vehicle_2',
+        categoryId: 'vehicles',
+        name: 'Sportif Hatchback',
+        attribute: 'pace',
+        bonus: 2,
+        icon: Icons.electric_car_outlined,
+      ),
+      _ShopItem(
+        id: 'vehicle_3',
+        categoryId: 'vehicles',
+        name: 'GT Coupé',
+        attribute: 'pace',
+        bonus: 3,
+        icon: Icons.time_to_leave_outlined,
+      ),
+      _ShopItem(
+        id: 'vehicle_4',
+        categoryId: 'vehicles',
+        name: 'Süper Otomobil',
+        attribute: 'pace',
+        bonus: 4,
+        icon: Icons.sports_motorsports_outlined,
+      ),
+      _ShopItem(
+        id: 'vehicle_5',
+        categoryId: 'vehicles',
+        name: 'Özel Hypercar',
+        attribute: 'pace',
+        bonus: 5,
+        icon: Icons.bolt_rounded,
+      ),
+    ],
+  ),
+  _ShopCategory(
+    id: 'homes',
+    title: 'Evler',
+    attribute: 'physical',
+    attributeLabel: 'Fizik',
+    icon: Icons.home_outlined,
+    items: [
+      _ShopItem(
+        id: 'home_1',
+        categoryId: 'homes',
+        name: 'Stüdyo Daire',
+        attribute: 'physical',
+        bonus: 1,
+        icon: Icons.apartment_outlined,
+      ),
+      _ShopItem(
+        id: 'home_2',
+        categoryId: 'homes',
+        name: 'Şehir Dairesi',
+        attribute: 'physical',
+        bonus: 2,
+        icon: Icons.location_city_outlined,
+      ),
+      _ShopItem(
+        id: 'home_3',
+        categoryId: 'homes',
+        name: 'Bahçeli Villa',
+        attribute: 'physical',
+        bonus: 3,
+        icon: Icons.home_work_outlined,
+      ),
+      _ShopItem(
+        id: 'home_4',
+        categoryId: 'homes',
+        name: 'Lüks Rezidans',
+        attribute: 'physical',
+        bonus: 4,
+        icon: Icons.domain_outlined,
+      ),
+      _ShopItem(
+        id: 'home_5',
+        categoryId: 'homes',
+        name: 'Özel Malikâne',
+        attribute: 'physical',
+        bonus: 5,
+        icon: Icons.villa_outlined,
+      ),
+    ],
+  ),
+  _ShopCategory(
+    id: 'boots',
+    title: 'Krampon',
+    attribute: 'shooting',
+    attributeLabel: 'Şut',
+    icon: Icons.ice_skating_outlined,
+    items: [
+      _ShopItem(
+        id: 'boot_1',
+        categoryId: 'boots',
+        name: 'Akademi Kramponu',
+        attribute: 'shooting',
+        bonus: 1,
+        icon: Icons.ice_skating_outlined,
+      ),
+      _ShopItem(
+        id: 'boot_2',
+        categoryId: 'boots',
+        name: 'Kontrol Serisi',
+        attribute: 'shooting',
+        bonus: 2,
+        icon: Icons.sports_soccer_outlined,
+      ),
+      _ShopItem(
+        id: 'boot_3',
+        categoryId: 'boots',
+        name: 'Güç Serisi',
+        attribute: 'shooting',
+        bonus: 3,
+        icon: Icons.flash_on_outlined,
+      ),
+      _ShopItem(
+        id: 'boot_4',
+        categoryId: 'boots',
+        name: 'Profesyonel Elite',
+        attribute: 'shooting',
+        bonus: 4,
+        icon: Icons.workspace_premium_outlined,
+      ),
+      _ShopItem(
+        id: 'boot_5',
+        categoryId: 'boots',
+        name: 'İmza Kramponu',
+        attribute: 'shooting',
+        bonus: 5,
+        icon: Icons.auto_awesome_outlined,
+      ),
+    ],
+  ),
+  _ShopCategory(
+    id: 'technology',
+    title: 'Teknoloji',
+    attribute: 'passing',
+    attributeLabel: 'Pas',
+    icon: Icons.devices_outlined,
+    items: [
+      _ShopItem(
+        id: 'tech_1',
+        categoryId: 'technology',
+        name: 'Akıllı Saat',
+        attribute: 'passing',
+        bonus: 1,
+        icon: Icons.watch_outlined,
+      ),
+      _ShopItem(
+        id: 'tech_2',
+        categoryId: 'technology',
+        name: 'Analiz Tableti',
+        attribute: 'passing',
+        bonus: 2,
+        icon: Icons.tablet_mac_outlined,
+      ),
+      _ShopItem(
+        id: 'tech_3',
+        categoryId: 'technology',
+        name: 'VR Oyun Görüşü',
+        attribute: 'passing',
+        bonus: 3,
+        icon: Icons.view_in_ar_outlined,
+      ),
+      _ShopItem(
+        id: 'tech_4',
+        categoryId: 'technology',
+        name: 'Taktik İstasyonu',
+        attribute: 'passing',
+        bonus: 4,
+        icon: Icons.computer_outlined,
+      ),
+      _ShopItem(
+        id: 'tech_5',
+        categoryId: 'technology',
+        name: 'AI Performans Labı',
+        attribute: 'passing',
+        bonus: 5,
+        icon: Icons.memory_outlined,
+      ),
+    ],
+  ),
+  _ShopCategory(
+    id: 'skills',
+    title: 'Beceri',
+    attribute: 'dribbling',
+    attributeLabel: 'Dribbling',
+    icon: Icons.sports_soccer_outlined,
+    items: [
+      _ShopItem(
+        id: 'skill_1',
+        categoryId: 'skills',
+        name: 'Antrenman Topu',
+        attribute: 'dribbling',
+        bonus: 1,
+        icon: Icons.sports_soccer_outlined,
+      ),
+      _ShopItem(
+        id: 'skill_2',
+        categoryId: 'skills',
+        name: 'Slalom Seti',
+        attribute: 'dribbling',
+        bonus: 2,
+        icon: Icons.traffic_outlined,
+      ),
+      _ShopItem(
+        id: 'skill_3',
+        categoryId: 'skills',
+        name: 'Denge Tahtası',
+        attribute: 'dribbling',
+        bonus: 3,
+        icon: Icons.balance_outlined,
+      ),
+      _ShopItem(
+        id: 'skill_4',
+        categoryId: 'skills',
+        name: 'Reaksiyon Işıkları',
+        attribute: 'dribbling',
+        bonus: 4,
+        icon: Icons.lightbulb_outline_rounded,
+      ),
+      _ShopItem(
+        id: 'skill_5',
+        categoryId: 'skills',
+        name: 'Özel Beceri Sahası',
+        attribute: 'dribbling',
+        bonus: 5,
+        icon: Icons.stadium_outlined,
+      ),
+    ],
+  ),
+  _ShopCategory(
+    id: 'defense',
+    title: 'Savunma',
+    attribute: 'defending',
+    attributeLabel: 'Defans',
+    icon: Icons.shield_outlined,
+    items: [
+      _ShopItem(
+        id: 'defense_1',
+        categoryId: 'defense',
+        name: 'Direnç Bandı',
+        attribute: 'defending',
+        bonus: 1,
+        icon: Icons.linear_scale_rounded,
+      ),
+      _ShopItem(
+        id: 'defense_2',
+        categoryId: 'defense',
+        name: 'Müdahale Mankeni',
+        attribute: 'defending',
+        bonus: 2,
+        icon: Icons.sports_martial_arts_outlined,
+      ),
+      _ShopItem(
+        id: 'defense_3',
+        categoryId: 'defense',
+        name: 'Reaksiyon Duvarı',
+        attribute: 'defending',
+        bonus: 3,
+        icon: Icons.grid_4x4_rounded,
+      ),
+      _ShopItem(
+        id: 'defense_4',
+        categoryId: 'defense',
+        name: 'İkili Mücadele Seti',
+        attribute: 'defending',
+        bonus: 4,
+        icon: Icons.groups_outlined,
+      ),
+      _ShopItem(
+        id: 'defense_5',
+        categoryId: 'defense',
+        name: 'Özel Savunma Sahası',
+        attribute: 'defending',
+        bonus: 5,
+        icon: Icons.security_rounded,
+      ),
+    ],
+  ),
+];
 
 class _InfoPanel extends StatelessWidget {
   const _InfoPanel({required this.icon, required this.text});

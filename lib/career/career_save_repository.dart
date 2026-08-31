@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/football_repository.dart';
 import 'career_profile.dart';
+import 'career_shop_state.dart';
 import 'offer_generator.dart';
 
 class SavedCareer {
@@ -13,6 +14,7 @@ class SavedCareer {
     this.currentWeek = 1,
     this.lastTrainingWeek,
     this.lastTrainingAttribute,
+    this.shopState = const CareerShopState(),
   });
 
   final CareerProfile profile;
@@ -20,6 +22,7 @@ class SavedCareer {
   final int currentWeek;
   final int? lastTrainingWeek;
   final String? lastTrainingAttribute;
+  final CareerShopState shopState;
 }
 
 class CareerSaveRepository {
@@ -31,6 +34,7 @@ class CareerSaveRepository {
     int currentWeek = 1,
     int? lastTrainingWeek,
     String? lastTrainingAttribute,
+    CareerShopState? shopState,
   }) async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString(
@@ -43,6 +47,8 @@ class CareerSaveRepository {
           'lastTrainingWeek': lastTrainingWeek,
           'lastTrainingAttribute': lastTrainingAttribute,
         },
+        'shop': (shopState ?? CareerShopState.initial(offer.weeklySalaryEuro))
+            .toJson(),
         'offer': {
           'leagueId': offer.league.id,
           'clubId': offer.club.id,
@@ -87,20 +93,27 @@ class CareerSaveRepository {
               .toList(growable: false)
             ..sort((a, b) => b.overall.compareTo(a.overall));
 
+      final offer = ClubOffer(
+        club: club,
+        league: league,
+        competitors: competitors,
+        role: offerJson['role'] as String,
+        contractYears: offerJson['contractYears'] as int,
+        weeklySalaryEuro: offerJson['weeklySalaryEuro'] as int,
+      );
+      final shopJson = json['shop'] as Map<String, dynamic>?;
+      final shopState = shopJson == null
+          ? CareerShopState.initial(offer.weeklySalaryEuro)
+          : CareerShopState.fromJson(shopJson);
+
       return SavedCareer(
         profile: profile,
         currentWeek: progressJson?['currentWeek'] as int? ?? 1,
         lastTrainingWeek: progressJson?['lastTrainingWeek'] as int?,
         lastTrainingAttribute:
             progressJson?['lastTrainingAttribute'] as String?,
-        offer: ClubOffer(
-          club: club,
-          league: league,
-          competitors: competitors,
-          role: offerJson['role'] as String,
-          contractYears: offerJson['contractYears'] as int,
-          weeklySalaryEuro: offerJson['weeklySalaryEuro'] as int,
-        ),
+        shopState: shopState,
+        offer: offer,
       );
     } on Object {
       return null;

@@ -73,6 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
           currentWeek: career.currentWeek,
           lastTrainingWeek: career.lastTrainingWeek,
           lastTrainingAttribute: career.lastTrainingAttribute,
+          shopState: career.shopState,
         ),
       ),
     );

@@ -98,8 +98,15 @@ class CareerProfile {
   final int seed;
 
   CareerProfile increaseAttribute(String attribute) {
+    return increaseAttributeBy(
+      attribute,
+      trainingIncrement(attributeValue(attribute)),
+    );
+  }
+
+  CareerProfile increaseAttributeBy(String attribute, double amount) {
     double increased(double value) {
-      final next = value + trainingIncrement(value);
+      final next = value + amount;
       return ((next.clamp(0, 99)) * 100).roundToDouble() / 100;
     }
 
