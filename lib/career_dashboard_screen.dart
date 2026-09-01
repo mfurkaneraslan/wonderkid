@@ -6,6 +6,8 @@ import 'career/career_shop_state.dart';
 import 'career/fixture_generator.dart';
 import 'career/offer_generator.dart';
 import 'data/football_repository.dart';
+import 'match/match_simulation.dart';
+import 'match/match_simulation_screen.dart';
 import 'training/training_game_screen.dart';
 import 'widgets/fc_player_card.dart';
 
@@ -39,11 +41,13 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
   late String? _lastTrainingAttribute;
   late final CareerSeasonFixture _fixture;
   late CareerShopState _shopState;
+  late int _currentWeek;
 
   @override
   void initState() {
     super.initState();
     _profile = widget.profile;
+    _currentWeek = widget.currentWeek;
     _lastTrainingWeek = widget.lastTrainingWeek;
     _lastTrainingAttribute = widget.lastTrainingAttribute;
     _shopState =
@@ -86,16 +90,39 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
     );
   }
 
-  void _playNextMatch() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Color(0xFF183A29),
-          content: Text('Sıradaki maç için hazırlıklar başladı.'),
+  Future<void> _playNextMatch() async {
+    final matchIndex = (_currentWeek - 1).clamp(0, _fixture.matches.length - 1);
+    final match = _fixture.matches[matchIndex];
+    final dataset = await FootballRepository.load();
+    if (!mounted) return;
+    final simulation = CareerMatchEngine.generate(
+      profile: _profile,
+      offer: widget.offer,
+      fixture: match,
+      userClubPlayers: dataset.playersForClub(widget.offer.club.id),
+      opponentPlayers: dataset.playersForClub(match.opponent.id),
+    );
+    final result = await Navigator.of(context).push<CareerMatchSimulation>(
+      MaterialPageRoute<CareerMatchSimulation>(
+        builder: (_) => MatchSimulationScreen(
+          profile: _profile,
+          leagueName: widget.offer.league.name,
+          simulation: simulation,
         ),
-      );
+      ),
+    );
+    if (!mounted || result == null) return;
+    setState(
+      () => _currentWeek = (_currentWeek + 1).clamp(1, _fixture.matches.length),
+    );
+    await CareerSaveRepository.save(
+      profile: _profile,
+      offer: widget.offer,
+      currentWeek: _currentWeek,
+      lastTrainingWeek: _lastTrainingWeek,
+      lastTrainingAttribute: _lastTrainingAttribute,
+      shopState: _shopState,
+    );
   }
 
   Future<void> _openTraining(TrainingAttribute attribute) async {
@@ -117,14 +144,14 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
         : _profile;
     setState(() {
       _profile = updatedProfile;
-      _lastTrainingWeek = widget.currentWeek;
+      _lastTrainingWeek = _currentWeek;
       _lastTrainingAttribute = attribute.name;
     });
     await CareerSaveRepository.save(
       profile: updatedProfile,
       offer: widget.offer,
-      currentWeek: widget.currentWeek,
-      lastTrainingWeek: widget.currentWeek,
+      currentWeek: _currentWeek,
+      lastTrainingWeek: _currentWeek,
       lastTrainingAttribute: attribute.name,
       shopState: _shopState,
     );
@@ -180,7 +207,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
     await CareerSaveRepository.save(
       profile: updatedProfile,
       offer: widget.offer,
-      currentWeek: widget.currentWeek,
+      currentWeek: _currentWeek,
       lastTrainingWeek: _lastTrainingWeek,
       lastTrainingAttribute: _lastTrainingAttribute,
       shopState: updatedShopState,
@@ -206,12 +233,13 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
         profile: _profile,
         offer: widget.offer,
         fixture: _fixture,
+        currentWeek: _currentWeek,
         onOpenFixture: _showFixture,
         onPlayMatch: _playNextMatch,
       ),
       _TrainingTab(
         profile: _profile,
-        currentWeek: widget.currentWeek,
+        currentWeek: _currentWeek,
         lastTrainingWeek: _lastTrainingWeek,
         onStartTraining: _openTraining,
       ),
@@ -293,7 +321,6 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       ),
     );
   }
-
 }
 
 class _OverviewTab extends StatelessWidget {
@@ -301,6 +328,7 @@ class _OverviewTab extends StatelessWidget {
     required this.profile,
     required this.offer,
     required this.fixture,
+    required this.currentWeek,
     required this.onOpenFixture,
     required this.onPlayMatch,
   });
@@ -308,6 +336,7 @@ class _OverviewTab extends StatelessWidget {
   final CareerProfile profile;
   final ClubOffer offer;
   final CareerSeasonFixture fixture;
+  final int currentWeek;
   final VoidCallback onOpenFixture;
   final VoidCallback onPlayMatch;
 
@@ -317,7 +346,7 @@ class _OverviewTab extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
-          _SeasonDateStrip(fixture: fixture),
+          _SeasonDateStrip(fixture: fixture, currentWeek: currentWeek),
           const SizedBox(height: 10),
           _ClubHeader(offer: offer),
           const SizedBox(height: 14),
@@ -330,6 +359,7 @@ class _OverviewTab extends StatelessWidget {
           const SizedBox(height: 14),
           _NextMatchCard(
             fixture: fixture,
+            currentWeek: currentWeek,
             club: offer.club,
             league: offer.league,
             onOpenFixture: onOpenFixture,
@@ -673,9 +703,10 @@ class _PageFrame extends StatelessWidget {
 }
 
 class _SeasonDateStrip extends StatelessWidget {
-  const _SeasonDateStrip({required this.fixture});
+  const _SeasonDateStrip({required this.fixture, required this.currentWeek});
 
   final CareerSeasonFixture fixture;
+  final int currentWeek;
 
   @override
   Widget build(BuildContext context) {
@@ -697,7 +728,7 @@ class _SeasonDateStrip extends StatelessWidget {
           ),
           const SizedBox(width: 9),
           Text(
-            _monthYear(fixture.startDate),
+            _monthYear(fixture.matches[currentWeek - 1].date),
             key: const Key('careerDate'),
             style: const TextStyle(
               fontSize: 12,
@@ -707,7 +738,7 @@ class _SeasonDateStrip extends StatelessWidget {
           ),
           const Spacer(),
           Text(
-            '${fixture.seasonYear} • 1. HAFTA',
+            '${fixture.seasonYear} • $currentWeek. HAFTA',
             key: const Key('careerWeek'),
             style: const TextStyle(
               color: Color(0xFFC8FF4D),
@@ -725,19 +756,21 @@ class _SeasonDateStrip extends StatelessWidget {
 class _NextMatchCard extends StatelessWidget {
   const _NextMatchCard({
     required this.fixture,
+    required this.currentWeek,
     required this.club,
     required this.league,
     required this.onOpenFixture,
   });
 
   final CareerSeasonFixture fixture;
+  final int currentWeek;
   final CareerClub club;
   final CareerLeague league;
   final VoidCallback onOpenFixture;
 
   @override
   Widget build(BuildContext context) {
-    final match = fixture.nextMatch;
+    final match = fixture.matches[currentWeek - 1];
     final homeClub = match.isHome ? club : match.opponent;
     final awayClub = match.isHome ? match.opponent : club;
     return Container(
