@@ -231,21 +231,10 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
     return Scaffold(
       key: const Key('careerDashboard'),
       backgroundColor: const Color(0xFF071A12),
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          _titles[_selectedIndex],
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.3,
-          ),
-        ),
-        centerTitle: true,
+      body: SafeArea(
+        bottom: false,
+        child: IndexedStack(index: _selectedIndex, children: pages),
       ),
-      body: IndexedStack(index: _selectedIndex, children: pages),
       bottomNavigationBar: SafeArea(
         top: false,
         child: Center(
@@ -305,7 +294,6 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
     );
   }
 
-  static const _titles = ['KARİYER MERKEZİ', 'ANTRENMAN', 'TAKIM', 'ALIŞVERİŞ'];
 }
 
 class _OverviewTab extends StatelessWidget {

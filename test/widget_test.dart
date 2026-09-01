@@ -307,7 +307,7 @@ void main() {
     );
 
     expect(find.byKey(const Key('careerDashboard')), findsOneWidget);
-    expect(find.text('KARİYER MERKEZİ'), findsOneWidget);
+    expect(find.text('KARİYER MERKEZİ'), findsNothing);
     expect(find.text('AĞUSTOS 2026'), findsOneWidget);
     expect(find.text('2026 • 1. HAFTA'), findsOneWidget);
     expect(find.byKey(const Key('fcPlayerCard')), findsOneWidget);
