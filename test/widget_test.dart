@@ -310,7 +310,13 @@ void main() {
     expect(find.text('KARİYER MERKEZİ'), findsOneWidget);
     expect(find.text('AĞUSTOS 2026'), findsOneWidget);
     expect(find.text('2026 • 1. HAFTA'), findsOneWidget);
+    expect(find.byKey(const Key('fcPlayerCard')), findsOneWidget);
+    await tester.drag(find.byType(ListView).first, const Offset(0, -300));
+    await tester.pumpAndSettle();
     expect(find.text('SIRADAKİ MAÇ'), findsOneWidget);
+    expect(find.text('İLK ANTRENMANINA ÇIK'), findsNothing);
+    expect(find.text('OYUNCU ÖZELLİKLERİ'), findsNothing);
+    expect(find.byKey(const Key('playNextMatchButton')), findsOneWidget);
 
     final fixtureButton = find.byKey(const Key('openFixtureButton'));
     await tester.ensureVisible(fixtureButton);

@@ -7,6 +7,7 @@ import 'career/fixture_generator.dart';
 import 'career/offer_generator.dart';
 import 'data/football_repository.dart';
 import 'training/training_game_screen.dart';
+import 'widgets/fc_player_card.dart';
 
 class CareerDashboardScreen extends StatefulWidget {
   const CareerDashboardScreen({
@@ -83,6 +84,18 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
         selectedClub: widget.offer.club,
       ),
     );
+  }
+
+  void _playNextMatch() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Color(0xFF183A29),
+          content: Text('Sıradaki maç için hazırlıklar başladı.'),
+        ),
+      );
   }
 
   Future<void> _openTraining(TrainingAttribute attribute) async {
@@ -193,8 +206,8 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
         profile: _profile,
         offer: widget.offer,
         fixture: _fixture,
-        onOpenTraining: () => setState(() => _selectedIndex = 1),
         onOpenFixture: _showFixture,
+        onPlayMatch: _playNextMatch,
       ),
       _TrainingTab(
         profile: _profile,
@@ -300,15 +313,15 @@ class _OverviewTab extends StatelessWidget {
     required this.profile,
     required this.offer,
     required this.fixture,
-    required this.onOpenTraining,
     required this.onOpenFixture,
+    required this.onPlayMatch,
   });
 
   final CareerProfile profile;
   final ClubOffer offer;
   final CareerSeasonFixture fixture;
-  final VoidCallback onOpenTraining;
   final VoidCallback onOpenFixture;
+  final VoidCallback onPlayMatch;
 
   @override
   Widget build(BuildContext context) {
@@ -319,29 +332,14 @@ class _OverviewTab extends StatelessWidget {
           _SeasonDateStrip(fixture: fixture),
           const SizedBox(height: 10),
           _ClubHeader(offer: offer),
-          const SizedBox(height: 12),
-          _PlayerHero(profile: profile),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _MetricTile(value: '${profile.overall}', label: 'OVR'),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _MetricTile(value: '${profile.age}', label: 'YAŞ'),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _MetricTile(
-                  value: _formatEuro(offer.weeklySalaryEuro),
-                  label: 'HAFTALIK',
-                  compact: true,
-                ),
-              ),
-            ],
+          const SizedBox(height: 14),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 270),
+              child: FcPlayerCard(profile: profile),
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _NextMatchCard(
             fixture: fixture,
             club: offer.club,
@@ -349,55 +347,30 @@ class _OverviewTab extends StatelessWidget {
             onOpenFixture: onOpenFixture,
           ),
           const SizedBox(height: 12),
-          Material(
-            color: const Color(0xFFC8FF4D),
-            borderRadius: BorderRadius.circular(18),
-            child: InkWell(
-              key: const Key('openTrainingButton'),
-              onTap: onOpenTraining,
-              borderRadius: BorderRadius.circular(18),
-              child: const Padding(
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.fitness_center_rounded,
-                      color: Color(0xFF092115),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'İLK ANTRENMANINA ÇIK',
-                            style: TextStyle(
-                              color: Color(0xFF092115),
-                              fontWeight: FontWeight.w900,
-                              fontSize: 13,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Gelişim puanı kazan ve özelliklerini yükselt.',
-                            style: TextStyle(
-                              color: Color(0xB3092115),
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.arrow_forward_rounded, color: Color(0xFF092115)),
-                  ],
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: FilledButton.icon(
+              key: const Key('playNextMatchButton'),
+              onPressed: onPlayMatch,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFC8FF4D),
+                foregroundColor: const Color(0xFF092115),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+              icon: const Icon(Icons.sports_soccer_rounded),
+              label: const Text(
+                'SIRADAKİ MAÇI OYNA',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 18),
-          const _SectionTitle(title: 'OYUNCU ÖZELLİKLERİ'),
-          const SizedBox(height: 9),
-          _AttributeGrid(profile: profile),
         ],
       ),
     );
@@ -1342,73 +1315,6 @@ class _ClubHeader extends StatelessWidget {
   }
 }
 
-class _PlayerHero extends StatelessWidget {
-  const _PlayerHero({required this.profile});
-
-  final CareerProfile profile;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF174D31), Color(0xFF0D2B1D)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 76,
-            height: 84,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFC8FF4D)),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Transform.scale(
-              scale: 1.17,
-              child: Image.asset(
-                profile.avatarAssetPath,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                cacheWidth: 228,
-              ),
-            ),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  profile.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${profile.position}  •  #${profile.shirtNumber}  •  ${profile.nationality}',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _TeamActionButton extends StatelessWidget {
   const _TeamActionButton({
     super.key,
@@ -1462,15 +1368,10 @@ class _TeamActionButton extends StatelessWidget {
 }
 
 class _MetricTile extends StatelessWidget {
-  const _MetricTile({
-    required this.value,
-    required this.label,
-    this.compact = false,
-  });
+  const _MetricTile({required this.value, required this.label});
 
   final String value;
   final String label;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -1484,7 +1385,7 @@ class _MetricTile extends StatelessWidget {
               value,
               style: TextStyle(
                 color: const Color(0xFFC8FF4D),
-                fontSize: compact ? 16 : 20,
+                fontSize: 20,
                 fontWeight: FontWeight.w900,
               ),
             ),
