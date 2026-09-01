@@ -14,6 +14,7 @@ class CareerProfile {
     required this.defending,
     required this.physical,
     required this.seed,
+    this.overallProgress = 0,
   });
 
   factory CareerProfile.create({
@@ -45,6 +46,7 @@ class CareerProfile {
       defending: attribute(4),
       physical: attribute(5),
       seed: seed,
+      overallProgress: 0,
     );
   }
 
@@ -64,6 +66,7 @@ class CareerProfile {
       defending: (json['defending'] as num).toDouble(),
       physical: (json['physical'] as num).toDouble(),
       seed: json['seed'] as int,
+      overallProgress: (json['overallProgress'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -96,6 +99,7 @@ class CareerProfile {
   final double defending;
   final double physical;
   final int seed;
+  final double overallProgress;
 
   CareerProfile increaseAttribute(String attribute) {
     return increaseAttributeBy(
@@ -110,6 +114,11 @@ class CareerProfile {
       return ((next.clamp(0, 99)) * 100).roundToDouble() / 100;
     }
 
+    final rawOverallProgress =
+        overallProgress + amount * _overallWeight(position, attribute);
+    final overallIncrease = rawOverallProgress.floor();
+    final remainingProgress = rawOverallProgress - overallIncrease;
+
     return CareerProfile(
       name: name,
       nationality: nationality,
@@ -117,7 +126,7 @@ class CareerProfile {
       position: position,
       avatarId: avatarId,
       age: age,
-      overall: overall,
+      overall: (overall + overallIncrease).clamp(1, 99),
       pace: attribute == 'pace' ? increased(pace) : pace,
       shooting: attribute == 'shooting' ? increased(shooting) : shooting,
       passing: attribute == 'passing' ? increased(passing) : passing,
@@ -125,6 +134,7 @@ class CareerProfile {
       defending: attribute == 'defending' ? increased(defending) : defending,
       physical: attribute == 'physical' ? increased(physical) : physical,
       seed: seed,
+      overallProgress: remainingProgress,
     );
   }
 
@@ -161,6 +171,111 @@ class CareerProfile {
     'defending': defending,
     'physical': physical,
     'seed': seed,
+    'overallProgress': overallProgress,
+  };
+
+  static double _overallWeight(String position, String attribute) {
+    final weights = _overallWeights[position] ?? _overallWeights['CM']!;
+    return weights[attribute] ?? 0.35;
+  }
+
+  static const _overallWeights = <String, Map<String, double>>{
+    'GK': {
+      'pace': 0.2,
+      'shooting': 0.1,
+      'passing': 0.55,
+      'dribbling': 0.25,
+      'defending': 1.0,
+      'physical': 0.7,
+    },
+    'LB': {
+      'pace': 0.8,
+      'shooting': 0.25,
+      'passing': 0.55,
+      'dribbling': 0.5,
+      'defending': 1.0,
+      'physical': 0.7,
+    },
+    'CB': {
+      'pace': 0.45,
+      'shooting': 0.15,
+      'passing': 0.4,
+      'dribbling': 0.25,
+      'defending': 1.0,
+      'physical': 0.9,
+    },
+    'RB': {
+      'pace': 0.8,
+      'shooting': 0.25,
+      'passing': 0.55,
+      'dribbling': 0.5,
+      'defending': 1.0,
+      'physical': 0.7,
+    },
+    'CDM': {
+      'pace': 0.4,
+      'shooting': 0.35,
+      'passing': 0.8,
+      'dribbling': 0.55,
+      'defending': 1.0,
+      'physical': 0.8,
+    },
+    'CM': {
+      'pace': 0.45,
+      'shooting': 0.5,
+      'passing': 1.0,
+      'dribbling': 0.75,
+      'defending': 0.55,
+      'physical': 0.55,
+    },
+    'CAM': {
+      'pace': 0.55,
+      'shooting': 0.75,
+      'passing': 1.0,
+      'dribbling': 0.9,
+      'defending': 0.15,
+      'physical': 0.35,
+    },
+    'LM': {
+      'pace': 0.85,
+      'shooting': 0.6,
+      'passing': 0.8,
+      'dribbling': 1.0,
+      'defending': 0.25,
+      'physical': 0.45,
+    },
+    'RM': {
+      'pace': 0.85,
+      'shooting': 0.6,
+      'passing': 0.8,
+      'dribbling': 1.0,
+      'defending': 0.25,
+      'physical': 0.45,
+    },
+    'LW': {
+      'pace': 1.0,
+      'shooting': 0.75,
+      'passing': 0.55,
+      'dribbling': 1.0,
+      'defending': 0.15,
+      'physical': 0.4,
+    },
+    'RW': {
+      'pace': 1.0,
+      'shooting': 0.75,
+      'passing': 0.55,
+      'dribbling': 1.0,
+      'defending': 0.15,
+      'physical': 0.4,
+    },
+    'ST': {
+      'pace': 0.75,
+      'shooting': 1.0,
+      'passing': 0.35,
+      'dribbling': 0.7,
+      'defending': 0.1,
+      'physical': 0.75,
+    },
   };
 
   static int _stableHash(String value) {

@@ -42,6 +42,9 @@ class CareerMatchSimulation {
     required this.exitMinute,
     required this.playerGoals,
     required this.playerAssists,
+    required this.playerShots,
+    required this.playerShotsOnTarget,
+    required this.playerTurnovers,
     required this.playerRating,
   });
 
@@ -56,6 +59,9 @@ class CareerMatchSimulation {
   final int? exitMinute;
   final int playerGoals;
   final int playerAssists;
+  final int playerShots;
+  final int playerShotsOnTarget;
+  final int playerTurnovers;
   final double? playerRating;
 
   int get minutesPlayed {
@@ -152,6 +158,45 @@ class CareerMatchEngine {
     final playerAssists = events
         .where((event) => event.assist == profile.name)
         .length;
+    final minutesPlayed = entryMinute == null || exitMinute == null
+        ? 0
+        : max(0, exitMinute - entryMinute + 1);
+    final shotVolume = switch (profile.position) {
+      'ST' => 4.2,
+      'LW' || 'RW' => 3.4,
+      'CAM' || 'LM' || 'RM' => 2.5,
+      'CM' || 'CDM' => 1.7,
+      'LB' || 'RB' || 'CB' => 0.8,
+      _ => 0.15,
+    };
+    final playerShots = minutesPlayed == 0
+        ? 0
+        : max(
+            playerGoals,
+            (shotVolume * minutesPlayed / 90 + random.nextDouble() * 1.8)
+                .round(),
+          );
+    final accuracy = (0.28 + profile.shooting / 180).clamp(0.32, 0.78);
+    final playerShotsOnTarget = max(
+      playerGoals,
+      min(playerShots, (playerShots * accuracy).round()),
+    );
+    final turnoverBase = switch (profile.position) {
+      'LW' || 'RW' || 'CAM' => 11.0,
+      'ST' || 'LM' || 'RM' => 8.5,
+      'CM' || 'CDM' => 7.0,
+      'LB' || 'RB' => 6.0,
+      'CB' => 4.0,
+      _ => 2.0,
+    };
+    final playerTurnovers = minutesPlayed == 0
+        ? 0
+        : max(
+            0,
+            ((turnoverBase - profile.dribbling / 18) * minutesPlayed / 90 +
+                    random.nextDouble() * 2.5)
+                .round(),
+          );
     final userGoals = fixture.isHome ? homeGoals : awayGoals;
     final opponentGoals = fixture.isHome ? awayGoals : homeGoals;
     final rating = squadStatus == PlayerSquadStatus.out
@@ -159,6 +204,8 @@ class CareerMatchEngine {
         : (6.35 +
                   playerGoals * 1.05 +
                   playerAssists * 0.65 +
+                  playerShotsOnTarget * 0.08 -
+                  playerTurnovers * 0.025 +
                   (userGoals > opponentGoals
                       ? 0.35
                       : userGoals == opponentGoals
@@ -180,6 +227,9 @@ class CareerMatchEngine {
       exitMinute: exitMinute,
       playerGoals: playerGoals,
       playerAssists: playerAssists,
+      playerShots: playerShots,
+      playerShotsOnTarget: playerShotsOnTarget,
+      playerTurnovers: playerTurnovers,
       playerRating: rating,
     );
   }

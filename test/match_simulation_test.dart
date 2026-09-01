@@ -95,6 +95,8 @@ void main() {
       expect(first.awayGoals, second.awayGoals);
       expect(first.squadStatus, second.squadStatus);
       expect(first.events.length, first.homeGoals + first.awayGoals);
+      expect(first.playerShotsOnTarget, lessThanOrEqualTo(first.playerShots));
+      expect(first.playerTurnovers, greaterThanOrEqualTo(0));
       expect(
         first.events.map((event) => event.minute),
         orderedEquals([...first.events.map((event) => event.minute)]..sort()),
@@ -144,6 +146,9 @@ void main() {
       exitMinute: 90,
       playerGoals: 1,
       playerAssists: 0,
+      playerShots: 4,
+      playerShotsOnTarget: 3,
+      playerTurnovers: 6,
       playerRating: 7.8,
     );
 
@@ -162,5 +167,19 @@ void main() {
     expect(find.text('İLK 11'), findsOneWidget);
     expect(find.text('0  -  0'), findsOneWidget);
     expect(find.text('MAÇI BAŞLAT'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('matchPrimaryButton')));
+    for (var minute = 0; minute < 95; minute++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    expect(find.byKey(const Key('matchPerformanceSummary')), findsOneWidget);
+    expect(find.byKey(const Key('playerMatchRating')), findsOneWidget);
+    expect(find.text('GOL'), findsOneWidget);
+    expect(find.text('ASİST'), findsOneWidget);
+    expect(find.text('ŞUT'), findsOneWidget);
+    expect(find.text('İSABETLİ ŞUT'), findsOneWidget);
+    expect(find.text('TOP KAYBI'), findsOneWidget);
+    expect(find.byKey(const Key('continueAfterMatchButton')), findsOneWidget);
   });
 }

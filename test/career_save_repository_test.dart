@@ -45,7 +45,8 @@ void main() {
     expect(savedCareer, isNotNull);
     expect(savedCareer!.profile.name, profile.name);
     expect(savedCareer.profile.avatarId, profile.avatarId);
-    expect(savedCareer.profile.overall, profile.overall);
+    expect(savedCareer.profile.overall, trainedProfile.overall);
+    expect(savedCareer.profile.overallProgress, trainedProfile.overallProgress);
     expect(savedCareer.profile.shooting, profile.shooting + 1);
     expect(savedCareer.currentWeek, 4);
     expect(savedCareer.lastTrainingWeek, 3);
@@ -70,6 +71,20 @@ void main() {
     expect(formatCareerAttribute(80), '80');
     expect(formatCareerAttribute(80.5), '80,5');
     expect(formatCareerAttribute(90.33), '90,33');
+  });
+
+  test('training raises overall according to position weights', () {
+    final winger = CareerProfile.create(
+      name: 'OVR Test',
+      nationality: 'Türkiye',
+      shirtNumber: 11,
+      position: 'LW',
+    );
+
+    final trained = winger.increaseAttribute('pace');
+
+    expect(trained.pace, winger.pace + 1);
+    expect(trained.overall, winger.overall + 1);
   });
 
   test('shop bonuses add an exact amount and respect the stat cap', () {

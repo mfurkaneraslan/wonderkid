@@ -92,6 +92,14 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
   @override
   Widget build(BuildContext context) {
     final simulation = widget.simulation;
+    if (_finished) {
+      return _MatchPerformanceSummary(
+        profile: widget.profile,
+        leagueName: widget.leagueName,
+        simulation: simulation,
+        onContinue: () => Navigator.of(context).pop(simulation),
+      );
+    }
     return Scaffold(
       key: const Key('matchSimulationScreen'),
       backgroundColor: const Color(0xFF071A12),
@@ -255,23 +263,12 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
                 ),
                 const SizedBox(height: 12),
                 _EventPanel(events: _visibleEvents.reversed.toList()),
-                if (_finished) ...[
-                  const SizedBox(height: 12),
-                  _PlayerResultCard(
-                    profile: widget.profile,
-                    simulation: simulation,
-                  ),
-                ],
                 const SizedBox(height: 16),
                 SizedBox(
                   height: 56,
                   child: FilledButton.icon(
                     key: const Key('matchPrimaryButton'),
-                    onPressed: _started && !_finished
-                        ? null
-                        : _finished
-                        ? () => Navigator.of(context).pop(simulation)
-                        : _startMatch,
+                    onPressed: _started ? null : _startMatch,
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFFC8FF4D),
                       foregroundColor: const Color(0xFF092115),
@@ -280,13 +277,9 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
                         borderRadius: BorderRadius.circular(17),
                       ),
                     ),
-                    icon: Icon(
-                      _finished
-                          ? Icons.check_rounded
-                          : Icons.play_arrow_rounded,
-                    ),
-                    label: Text(
-                      _finished ? 'MAÇ SONUCUNU ONAYLA' : 'MAÇI BAŞLAT',
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text(
+                      'MAÇI BAŞLAT',
                       style: const TextStyle(
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.5,
@@ -455,40 +448,196 @@ class _EventPanel extends StatelessWidget {
   }
 }
 
-class _PlayerResultCard extends StatelessWidget {
-  const _PlayerResultCard({required this.profile, required this.simulation});
+class _MatchPerformanceSummary extends StatelessWidget {
+  const _MatchPerformanceSummary({
+    required this.profile,
+    required this.leagueName,
+    required this.simulation,
+    required this.onContinue,
+  });
 
   final CareerProfile profile;
+  final String leagueName;
   final CareerMatchSimulation simulation;
+  final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      key: const Key('playerMatchResult'),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFC8FF4D).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFC8FF4D).withValues(alpha: 0.35),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              profile.name,
-              style: const TextStyle(fontWeight: FontWeight.w900),
+    final rating = simulation.playerRating;
+    return Scaffold(
+      key: const Key('matchPerformanceSummary'),
+      backgroundColor: const Color(0xFF071A12),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+              child: Column(
+                children: [
+                  const Text(
+                    'MAÇ SONU',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$leagueName • ${simulation.fixture.week}. HAFTA',
+                    style: const TextStyle(color: Colors.white38, fontSize: 10),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF174D31), Color(0xFF0D2B1D)],
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _ScoreClub(
+                            id: simulation.homeClub.id,
+                            name: simulation.homeClub.name,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            '${simulation.homeGoals}  -  ${simulation.awayGoals}',
+                            key: const Key('finalScore'),
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: _ScoreClub(
+                            id: simulation.awayClub.id,
+                            name: simulation.awayClub.name,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    key: const Key('playerMatchResult'),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF102A1D),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          profile.name.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          rating == null ? '—' : rating.toStringAsFixed(1),
+                          key: const Key('playerMatchRating'),
+                          style: const TextStyle(
+                            color: Color(0xFFC8FF4D),
+                            fontSize: 46,
+                            height: 0.95,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          '10 ÜZERİNDEN MAÇ PUANI',
+                          style: TextStyle(
+                            color: Colors.white38,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        GridView.count(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: 3,
+                          childAspectRatio: 1.55,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                          children: [
+                            _ResultValue(
+                              label: 'GOL',
+                              value: '${simulation.playerGoals}',
+                            ),
+                            _ResultValue(
+                              label: 'ASİST',
+                              value: '${simulation.playerAssists}',
+                            ),
+                            _ResultValue(
+                              label: 'ŞUT',
+                              value: '${simulation.playerShots}',
+                            ),
+                            _ResultValue(
+                              label: 'İSABETLİ ŞUT',
+                              value: '${simulation.playerShotsOnTarget}',
+                            ),
+                            _ResultValue(
+                              label: 'TOP KAYBI',
+                              value: '${simulation.playerTurnovers}',
+                            ),
+                            _ResultValue(
+                              label: 'OYNANAN DK',
+                              value: '${simulation.minutesPlayed}',
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 58,
+                    child: FilledButton.icon(
+                      key: const Key('continueAfterMatchButton'),
+                      onPressed: onContinue,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFC8FF4D),
+                        foregroundColor: const Color(0xFF092115),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                      label: const Text(
+                        'DEVAM ET',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      iconAlignment: IconAlignment.end,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          _ResultValue(label: 'DK', value: '${simulation.minutesPlayed}'),
-          _ResultValue(label: 'GOL', value: '${simulation.playerGoals}'),
-          _ResultValue(label: 'ASİST', value: '${simulation.playerAssists}'),
-          _ResultValue(
-            label: 'PUAN',
-            value: simulation.playerRating?.toStringAsFixed(1) ?? '—',
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -502,22 +651,29 @@ class _ResultValue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 48,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(14),
+      ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             value,
             style: const TextStyle(
               color: Color(0xFFC8FF4D),
+              fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
           ),
+          const SizedBox(height: 2),
           Text(
             label,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white38,
-              fontSize: 7,
+              fontSize: 8,
               fontWeight: FontWeight.w800,
             ),
           ),
