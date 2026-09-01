@@ -610,24 +610,27 @@ class _ShopTabState extends State<_ShopTab> {
           const SizedBox(height: 18),
           const _SectionTitle(title: 'KATEGORİLER'),
           const SizedBox(height: 9),
-          SizedBox(
-            height: 74,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _shopCategories.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final item = _shopCategories[index];
-                final selected = index == _selectedCategory;
-                return _ShopCategoryChip(
-                  key: Key('shopCategory_${item.id}'),
-                  category: item,
-                  selected: selected,
-                  level: widget.shopState.levelFor(item.id),
-                  onTap: () => setState(() => _selectedCategory = index),
-                );
-              },
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 1.5,
             ),
+            itemCount: _shopCategories.length,
+            itemBuilder: (context, index) {
+              final item = _shopCategories[index];
+              final selected = index == _selectedCategory;
+              return _ShopCategoryChip(
+                key: Key('shopCategory_${item.id}'),
+                category: item,
+                selected: selected,
+                level: widget.shopState.levelFor(item.id),
+                onTap: () => setState(() => _selectedCategory = index),
+              );
+            },
           ),
           const SizedBox(height: 18),
           Row(
@@ -1758,7 +1761,7 @@ class _ShopCategoryChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(15),
         child: Container(
-          width: 112,
+          width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(15),
