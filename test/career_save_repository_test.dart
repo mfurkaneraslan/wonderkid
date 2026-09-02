@@ -81,10 +81,25 @@ void main() {
       position: 'LW',
     );
 
-    final trained = winger.increaseAttribute('pace');
+    final trained = winger.increaseAttributeBy('pace', 4);
 
-    expect(trained.pace, winger.pace + 1);
+    expect(trained.pace, winger.pace + 4);
     expect(trained.overall, winger.overall + 1);
+  });
+
+  test('every stat affects overall but position relevance controls impact', () {
+    final centreBack = CareerProfile.create(
+      name: 'Defender Test',
+      nationality: 'Türkiye',
+      shirtNumber: 4,
+      position: 'CB',
+    );
+
+    final shootingBoost = centreBack.increaseAttributeBy('shooting', 20);
+    final defendingBoost = centreBack.increaseAttributeBy('defending', 20);
+
+    expect(shootingBoost.overallProgress, greaterThan(0));
+    expect(defendingBoost.overall, greaterThan(shootingBoost.overall));
   });
 
   test('shop bonuses add an exact amount and respect the stat cap', () {

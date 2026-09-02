@@ -176,7 +176,11 @@ class CareerProfile {
 
   static double _overallWeight(String position, String attribute) {
     final weights = _overallWeights[position] ?? _overallWeights['CM']!;
-    return weights[attribute] ?? 0.35;
+    final totalWeight = weights.values.fold<double>(
+      0,
+      (sum, value) => sum + value,
+    );
+    return (weights[attribute] ?? 0.1) / totalWeight;
   }
 
   static const _overallWeights = <String, Map<String, double>>{
