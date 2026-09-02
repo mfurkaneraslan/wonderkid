@@ -7,6 +7,8 @@ import '../data/football_repository.dart';
 
 enum PlayerSquadStatus { starting, substitute, out }
 
+enum CareerMatchEventType { goal, shot, pass, dribble, defending, turnover }
+
 extension PlayerSquadStatusLabel on PlayerSquadStatus {
   String get label => switch (this) {
     PlayerSquadStatus.starting => 'İLK 11',
@@ -21,12 +23,25 @@ class CareerMatchEvent {
     required this.isHomeGoal,
     required this.scorer,
     this.assist,
-  });
+  }) : type = CareerMatchEventType.goal,
+       description = null;
+
+  const CareerMatchEvent.action({
+    required this.minute,
+    required this.type,
+    required this.description,
+  }) : isHomeGoal = false,
+       scorer = '',
+       assist = null;
 
   final int minute;
   final bool isHomeGoal;
   final String scorer;
   final String? assist;
+  final CareerMatchEventType type;
+  final String? description;
+
+  bool get isGoal => type == CareerMatchEventType.goal;
 }
 
 class CareerMatchSimulation {
@@ -150,13 +165,11 @@ class CareerMatchEngine {
 
     addGoals(home: true, count: homeGoals);
     addGoals(home: false, count: awayGoals);
-    events.sort((a, b) => a.minute.compareTo(b.minute));
-
     final playerGoals = events
-        .where((event) => event.scorer == profile.name)
+        .where((event) => event.isGoal && event.scorer == profile.name)
         .length;
     final playerAssists = events
-        .where((event) => event.assist == profile.name)
+        .where((event) => event.isGoal && event.assist == profile.name)
         .length;
     final minutesPlayed = entryMinute == null || exitMinute == null
         ? 0
@@ -197,6 +210,73 @@ class CareerMatchEngine {
                     random.nextDouble() * 2.5)
                 .round(),
           );
+
+    if (entryMinute != null && exitMinute != null) {
+      final teammate = _pickScorer(
+        userClubPlayers,
+        random,
+        fallback: offer.club.name,
+      );
+
+      void addAction(CareerMatchEventType type, String description) {
+        final firstMinute = max(2, entryMinute);
+        final lastMinute = min(89, exitMinute);
+        if (firstMinute > lastMinute) return;
+        int? minute;
+        for (var attempt = 0; attempt < 30; attempt++) {
+          final candidate =
+              firstMinute + random.nextInt(lastMinute - firstMinute + 1);
+          if (!occupiedMinutes.contains(candidate)) {
+            minute = candidate;
+            break;
+          }
+        }
+        if (minute == null) return;
+        occupiedMinutes.add(minute);
+        events.add(
+          CareerMatchEvent.action(
+            minute: minute,
+            type: type,
+            description: description,
+          ),
+        );
+      }
+
+      final nonGoalShots = max(0, playerShots - playerGoals);
+      final savedShots = max(0, playerShotsOnTarget - playerGoals);
+      for (var index = 0; index < min(nonGoalShots, 3); index++) {
+        final onTarget = index < savedShots;
+        addAction(
+          CareerMatchEventType.shot,
+          onTarget
+              ? '${profile.name} sert vurdu — kaleci çıkardı!'
+              : index.isEven
+              ? '${profile.name} şutunu çekti — üstten dışarı!'
+              : '${profile.name} denedi — top yandan auta gitti.',
+        );
+      }
+
+      for (var index = 0; index < min(playerTurnovers, 2); index++) {
+        addAction(
+          CareerMatchEventType.turnover,
+          index.isEven
+              ? '${profile.name} rakibini geçmek istedi ama topu kaybetti.'
+              : '${profile.name} baskı altında pas hatası yaptı.',
+        );
+      }
+
+      final positionActions = _positionActions(
+        profile: profile,
+        teammate: teammate,
+      );
+      final extraActionCount = (minutesPlayed / 14).round().clamp(2, 6);
+      for (var index = 0; index < extraActionCount; index++) {
+        final action = positionActions[index % positionActions.length];
+        addAction(action.$1, action.$2);
+      }
+    }
+
+    events.sort((a, b) => a.minute.compareTo(b.minute));
     final userGoals = fixture.isHome ? homeGoals : awayGoals;
     final opponentGoals = fixture.isHome ? awayGoals : homeGoals;
     final rating = squadStatus == PlayerSquadStatus.out
@@ -303,4 +383,56 @@ class CareerMatchEngine {
     'CDM' || 'LB' || 'RB' => 0.14,
     _ => 0.04,
   };
+
+  static List<(CareerMatchEventType, String)> _positionActions({
+    required CareerProfile profile,
+    required String teammate,
+  }) {
+    final name = profile.name;
+    return switch (profile.position) {
+      'GK' => [
+        (CareerMatchEventType.defending, '$name köşeye giden topu çıkardı!'),
+        (CareerMatchEventType.pass, '$name oyunu hızlı bir pasla başlattı.'),
+        (
+          CareerMatchEventType.defending,
+          '$name zamanında çıkarak topu kontrol etti.',
+        ),
+      ],
+      'CB' || 'CDM' => [
+        (
+          CareerMatchEventType.defending,
+          '$name kritik bir müdahaleyle topu kazandı.',
+        ),
+        (CareerMatchEventType.pass, '$name uzun pasla $teammate\'i gördü.'),
+        (
+          CareerMatchEventType.defending,
+          '$name rakibinin şutuna geçit vermedi.',
+        ),
+      ],
+      'LB' || 'RB' || 'LM' || 'RM' || 'LW' || 'RW' => [
+        (CareerMatchEventType.dribble, '$name çizgide rakibini geçti.'),
+        (
+          CareerMatchEventType.pass,
+          '$name ortasını açtı, $teammate vurdu — üstten dışarı!',
+        ),
+        (
+          CareerMatchEventType.pass,
+          '$name ceza sahasına tehlikeli bir pas gönderdi.',
+        ),
+      ],
+      'ST' => [
+        (CareerMatchEventType.dribble, '$name savunmanın arkasına sarktı.'),
+        (CareerMatchEventType.pass, '$name topu $teammate ile buluşturdu.'),
+        (CareerMatchEventType.shot, '$name ceza sahasında fırsat aradı.'),
+      ],
+      _ => [
+        (CareerMatchEventType.pass, '$name ara pasıyla $teammate\'i kaçırdı.'),
+        (
+          CareerMatchEventType.dribble,
+          '$name orta sahada rakibinden sıyrıldı.',
+        ),
+        (CareerMatchEventType.pass, '$name hücumun yönünü değiştirdi.'),
+      ],
+    };
+  }
 }

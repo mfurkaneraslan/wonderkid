@@ -36,9 +36,9 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
       .toList(growable: false);
 
   int get _homeGoals =>
-      _visibleEvents.where((event) => event.isHomeGoal).length;
+      _visibleEvents.where((event) => event.isGoal && event.isHomeGoal).length;
   int get _awayGoals =>
-      _visibleEvents.where((event) => !event.isHomeGoal).length;
+      _visibleEvents.where((event) => event.isGoal && !event.isHomeGoal).length;
 
   void _startMatch() {
     if (_started) return;
@@ -54,7 +54,7 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
           widget.simulation.squadStatus == PlayerSquadStatus.substitute &&
           nextMinute == widget.simulation.entryMinute;
       final goal = widget.simulation.events
-          .where((event) => event.minute == nextMinute)
+          .where((event) => event.isGoal && event.minute == nextMinute)
           .firstOrNull;
       setState(() {
         _minute = nextMinute;
@@ -457,7 +457,7 @@ class _EventPanel extends StatelessWidget {
       child: events.isEmpty
           ? const Center(
               child: Text(
-                'Henüz gol olmadı.',
+                'Henüz önemli bir pozisyon olmadı.',
                 style: TextStyle(color: Colors.white38, fontSize: 11),
               ),
             )
@@ -478,14 +478,19 @@ class _EventPanel extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const Icon(Icons.sports_soccer_rounded, size: 16),
+                        Icon(_eventIcon(event.type), size: 16),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            event.assist == null
-                                ? event.scorer
-                                : '${event.scorer}  •  Asist: ${event.assist}',
-                            maxLines: 1,
+                            event.isGoal
+                                ? event.assist == null
+                                      ? 'GOL • ${event.scorer}'
+                                      : 'GOL • ${event.scorer}  •  Asist: ${event.assist}'
+                                : event.description!,
+                            key: event.isGoal
+                                ? null
+                                : ValueKey('action_${event.minute}'),
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 10,
@@ -500,6 +505,15 @@ class _EventPanel extends StatelessWidget {
             ),
     );
   }
+
+  IconData _eventIcon(CareerMatchEventType type) => switch (type) {
+    CareerMatchEventType.goal => Icons.sports_soccer_rounded,
+    CareerMatchEventType.shot => Icons.adjust_rounded,
+    CareerMatchEventType.pass => Icons.trending_flat_rounded,
+    CareerMatchEventType.dribble => Icons.directions_run_rounded,
+    CareerMatchEventType.defending => Icons.shield_rounded,
+    CareerMatchEventType.turnover => Icons.sync_problem_rounded,
+  };
 }
 
 class _MatchPerformanceSummary extends StatelessWidget {

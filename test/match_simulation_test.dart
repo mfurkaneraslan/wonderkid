@@ -94,9 +94,24 @@ void main() {
       expect(first.homeGoals, second.homeGoals);
       expect(first.awayGoals, second.awayGoals);
       expect(first.squadStatus, second.squadStatus);
-      expect(first.events.length, first.homeGoals + first.awayGoals);
+      expect(
+        first.events.where((event) => event.isGoal).length,
+        first.homeGoals + first.awayGoals,
+      );
       expect(first.playerShotsOnTarget, lessThanOrEqualTo(first.playerShots));
       expect(first.playerTurnovers, greaterThanOrEqualTo(0));
+      final actions = first.events.where((event) => !event.isGoal);
+      if (first.minutesPlayed > 0) {
+        expect(actions, isNotEmpty);
+        expect(
+          actions.every(
+            (event) =>
+                event.minute >= first.entryMinute! &&
+                event.minute <= first.exitMinute!,
+          ),
+          isTrue,
+        );
+      }
       expect(
         first.events.map((event) => event.minute),
         orderedEquals([...first.events.map((event) => event.minute)]..sort()),
@@ -140,6 +155,11 @@ void main() {
       awayGoals: 0,
       events: const [
         CareerMatchEvent(minute: 24, isHomeGoal: true, scorer: 'Furkan'),
+        CareerMatchEvent.action(
+          minute: 4,
+          type: CareerMatchEventType.pass,
+          description: 'Furkan ortasını açtı, Piatek vurdu — üstten dışarı!',
+        ),
       ],
       squadStatus: PlayerSquadStatus.substitute,
       entryMinute: 3,
@@ -176,6 +196,12 @@ void main() {
     expect(find.byKey(const Key('substitutionBanner')), findsOneWidget);
     expect(find.text('OYUNA GİRDİN!'), findsOneWidget);
     expect(find.text('OYUNDA'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.text('Furkan ortasını açtı, Piatek vurdu — üstten dışarı!'),
+      findsOneWidget,
+    );
 
     for (var tick = 0; tick < 100; tick++) {
       await tester.pump(const Duration(milliseconds: 100));
