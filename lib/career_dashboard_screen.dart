@@ -91,6 +91,57 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
   }
 
   Future<void> _playNextMatch() async {
+    if (_lastTrainingWeek != _currentWeek) {
+      final skipTraining = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          key: const Key('skipTrainingDialog'),
+          backgroundColor: const Color(0xFF102A1D),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+            side: const BorderSide(color: Color(0x33C8FF4D)),
+          ),
+          icon: const Icon(
+            Icons.fitness_center_rounded,
+            color: Color(0xFFC8FF4D),
+            size: 32,
+          ),
+          title: const Text(
+            'ANTRENMAN YAPMADIN',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+          ),
+          content: const Text(
+            'Bu haftaki antrenmanı atlamak mı istiyorsun?',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            TextButton(
+              key: const Key('goToTrainingButton'),
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('ANTRENMANA GİT'),
+            ),
+            FilledButton(
+              key: const Key('skipTrainingButton'),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFC8FF4D),
+                foregroundColor: const Color(0xFF092115),
+              ),
+              child: const Text('ATLA VE MAÇA ÇIK'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (skipTraining != true) {
+        if (skipTraining == false) setState(() => _selectedIndex = 1);
+        return;
+      }
+    }
+
     final matchIndex = (_currentWeek - 1).clamp(0, _fixture.matches.length - 1);
     final match = _fixture.matches[matchIndex];
     final dataset = await FootballRepository.load();
@@ -126,6 +177,31 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
   }
 
   Future<void> _openTraining(TrainingAttribute attribute) async {
+    if (_lastTrainingWeek == _currentWeek) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Color(0xFF183A29),
+            content: Text('Bu haftaki antrenmanını tamamladın.'),
+          ),
+        );
+      return;
+    }
+    if (_lastTrainingWeek == _currentWeek - 1 &&
+        _lastTrainingAttribute == attribute.name) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Color(0xFF183A29),
+            content: Text('Geçen haftaki antrenmanı üst üste seçemezsin.'),
+          ),
+        );
+      return;
+    }
     final currentValue = _profile.attributeValue(attribute.name);
     final statIncrease = CareerProfile.trainingIncrement(currentValue);
     final result = await Navigator.of(context).push<TrainingResult>(
@@ -241,6 +317,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
         profile: _profile,
         currentWeek: _currentWeek,
         lastTrainingWeek: _lastTrainingWeek,
+        lastTrainingAttribute: _lastTrainingAttribute,
         onStartTraining: _openTraining,
       ),
       _TeamTab(
@@ -400,17 +477,22 @@ class _TrainingTab extends StatelessWidget {
     required this.profile,
     required this.currentWeek,
     required this.lastTrainingWeek,
+    required this.lastTrainingAttribute,
     required this.onStartTraining,
   });
 
   final CareerProfile profile;
   final int currentWeek;
   final int? lastTrainingWeek;
+  final String? lastTrainingAttribute;
   final ValueChanged<TrainingAttribute> onStartTraining;
 
   @override
   Widget build(BuildContext context) {
     final trainedThisWeek = lastTrainingWeek == currentWeek;
+    final previousWeekAttribute = lastTrainingWeek == currentWeek - 1
+        ? lastTrainingAttribute
+        : null;
 
     return _PageFrame(
       child: ListView(
@@ -419,10 +501,10 @@ class _TrainingTab extends StatelessWidget {
           _StatusBanner(
             icon: Icons.bolt_rounded,
             title: 'ANTRENMAN HAKKI',
-            value: 'SINIRSIZ',
+            value: trainedThisWeek ? '0 / 1' : '1 / 1',
             subtitle: trainedThisWeek
-                ? 'Bu haftaki antrenmanını tamamladın • Test modu açık'
-                : 'Test modu • 20 saniye • 3 hata hakkı',
+                ? 'Bu haftaki antrenmanını tamamladın'
+                : 'Bu hafta bir antrenman yapabilirsin',
           ),
           const SizedBox(height: 18),
           const _SectionTitle(title: 'ANTRENMANINI SEÇ'),
@@ -431,42 +513,54 @@ class _TrainingTab extends StatelessWidget {
             key: const Key('paceTrainingCard'),
             icon: Icons.speed_rounded,
             title: 'Hız',
-            onTap: () => onStartTraining(TrainingAttribute.pace),
+            onTap: trainedThisWeek || previousWeekAttribute == 'pace'
+                ? null
+                : () => onStartTraining(TrainingAttribute.pace),
           ),
           const SizedBox(height: 8),
           _TrainingCard(
             key: const Key('shootingTrainingCard'),
             icon: Icons.sports_soccer_rounded,
             title: 'Şut',
-            onTap: () => onStartTraining(TrainingAttribute.shooting),
+            onTap: trainedThisWeek || previousWeekAttribute == 'shooting'
+                ? null
+                : () => onStartTraining(TrainingAttribute.shooting),
           ),
           const SizedBox(height: 8),
           _TrainingCard(
             key: const Key('passingTrainingCard'),
             icon: Icons.route_rounded,
             title: 'Pas',
-            onTap: () => onStartTraining(TrainingAttribute.passing),
+            onTap: trainedThisWeek || previousWeekAttribute == 'passing'
+                ? null
+                : () => onStartTraining(TrainingAttribute.passing),
           ),
           const SizedBox(height: 8),
           _TrainingCard(
             key: const Key('dribblingTrainingCard'),
             icon: Icons.multiple_stop_rounded,
             title: 'Dribbling',
-            onTap: () => onStartTraining(TrainingAttribute.dribbling),
+            onTap: trainedThisWeek || previousWeekAttribute == 'dribbling'
+                ? null
+                : () => onStartTraining(TrainingAttribute.dribbling),
           ),
           const SizedBox(height: 8),
           _TrainingCard(
             key: const Key('defendingTrainingCard'),
             icon: Icons.shield_outlined,
             title: 'Defans',
-            onTap: () => onStartTraining(TrainingAttribute.defending),
+            onTap: trainedThisWeek || previousWeekAttribute == 'defending'
+                ? null
+                : () => onStartTraining(TrainingAttribute.defending),
           ),
           const SizedBox(height: 8),
           _TrainingCard(
             key: const Key('physicalTrainingCard'),
             icon: Icons.fitness_center_rounded,
             title: 'Fizik',
-            onTap: () => onStartTraining(TrainingAttribute.physical),
+            onTap: trainedThisWeek || previousWeekAttribute == 'physical'
+                ? null
+                : () => onStartTraining(TrainingAttribute.physical),
           ),
           const SizedBox(height: 18),
           const _SectionTitle(title: 'MEVCUT ÖZELLİKLER'),
@@ -1505,50 +1599,49 @@ class _TrainingCard extends StatelessWidget {
 
   final IconData icon;
   final String title;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.045),
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
+    final enabled = onTap != null;
+    return Opacity(
+      opacity: enabled ? 1 : 0.42,
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.045),
         borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFC8FF4D).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(icon, color: const Color(0xFFC8FF4D)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Icon(
-                    Icons.play_arrow_rounded,
-                    color: Color(0xFFC8FF4D),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFC8FF4D).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(13),
                   ),
-                ],
-              ),
-            ],
+                  child: Icon(icon, color: const Color(0xFFC8FF4D)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                Icon(
+                  enabled ? Icons.play_arrow_rounded : Icons.lock_rounded,
+                  color: const Color(0xFFC8FF4D),
+                ),
+              ],
+            ),
           ),
         ),
       ),

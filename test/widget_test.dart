@@ -318,6 +318,19 @@ void main() {
     expect(find.text('OYUNCU ÖZELLİKLERİ'), findsNothing);
     expect(find.byKey(const Key('playNextMatchButton')), findsOneWidget);
 
+    await tester.tap(find.byKey(const Key('playNextMatchButton')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('skipTrainingDialog')), findsOneWidget);
+    expect(
+      find.text('Bu haftaki antrenmanı atlamak mı istiyorsun?'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('goToTrainingButton')));
+    await tester.pumpAndSettle();
+    expect(find.text('ANTRENMANINI SEÇ'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('dashboardTab')));
+    await tester.pumpAndSettle();
+
     final fixtureButton = find.byKey(const Key('openFixtureButton'));
     await tester.ensureVisible(fixtureButton);
     await tester.pumpAndSettle();
@@ -400,5 +413,62 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Şehir Dairesi'), findsOneWidget);
     expect(find.text('+0 PHY'), findsOneWidget);
+  });
+
+  testWidgets('only one training can be completed each week', (tester) async {
+    final profile = CareerProfile.create(
+      name: 'Furkan Eraslan',
+      nationality: 'Türkiye',
+      shirtNumber: 7,
+      position: 'ST',
+    );
+    const club = CareerClub(
+      id: 1,
+      name: 'Wonderkid FC',
+      rating: 72,
+      playerCount: 25,
+    );
+    const opponent = CareerClub(
+      id: 2,
+      name: 'Rakip FC',
+      rating: 71,
+      playerCount: 25,
+    );
+    const league = CareerLeague(
+      id: 68,
+      name: 'Süper Lig',
+      country: 'Türkiye',
+      clubs: [club, opponent],
+    );
+    const offer = ClubOffer(
+      club: club,
+      league: league,
+      competitors: [_topCompetitor, _lowerCompetitor],
+      role: 'Rotasyon',
+      contractYears: 1,
+      weeklySalaryEuro: 9000,
+    );
+
+    await tester.pumpWidget(
+      WonderkidApp(
+        home: CareerDashboardScreen(
+          profile: profile,
+          offer: offer,
+          currentWeek: 2,
+          lastTrainingWeek: 2,
+          lastTrainingAttribute: 'shooting',
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('trainingTab')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('0 / 1'), findsOneWidget);
+    expect(find.text('Bu haftaki antrenmanını tamamladın'), findsOneWidget);
+    final paceInkWell = find.descendant(
+      of: find.byKey(const Key('paceTrainingCard')),
+      matching: find.byType(InkWell),
+    );
+    expect(tester.widget<InkWell>(paceInkWell).onTap, isNull);
   });
 }
