@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/football_repository.dart';
 import 'career_profile.dart';
 import 'career_shop_state.dart';
+import 'league_progress.dart';
 import 'offer_generator.dart';
 
 class SavedCareer {
@@ -15,6 +16,7 @@ class SavedCareer {
     this.lastTrainingWeek,
     this.lastTrainingAttribute,
     this.shopState = const CareerShopState(),
+    this.matchResults = const <CareerLeagueMatchResult>[],
   });
 
   final CareerProfile profile;
@@ -23,6 +25,7 @@ class SavedCareer {
   final int? lastTrainingWeek;
   final String? lastTrainingAttribute;
   final CareerShopState shopState;
+  final List<CareerLeagueMatchResult> matchResults;
 }
 
 class CareerSaveRepository {
@@ -35,12 +38,14 @@ class CareerSaveRepository {
     int? lastTrainingWeek,
     String? lastTrainingAttribute,
     CareerShopState? shopState,
+    List<CareerLeagueMatchResult> matchResults = const [],
   }) async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString(
       _storageKey,
       jsonEncode({
         'version': 1,
+        'economyVersion': 2,
         'profile': profile.toJson(),
         'progress': {
           'currentWeek': currentWeek,
@@ -49,6 +54,7 @@ class CareerSaveRepository {
         },
         'shop': (shopState ?? CareerShopState.initial(offer.weeklySalaryEuro))
             .toJson(),
+        'matchResults': matchResults.map((result) => result.toJson()).toList(),
         'offer': {
           'leagueId': offer.league.id,
           'clubId': offer.club.id,
@@ -102,9 +108,21 @@ class CareerSaveRepository {
         weeklySalaryEuro: offerJson['weeklySalaryEuro'] as int,
       );
       final shopJson = json['shop'] as Map<String, dynamic>?;
-      final shopState = shopJson == null
+      var shopState = shopJson == null
           ? CareerShopState.initial(offer.weeklySalaryEuro)
           : CareerShopState.fromJson(shopJson);
+      final economyVersion = json['economyVersion'] as int? ?? 1;
+      if (economyVersion < 2 &&
+          shopState.categoryLevels.isEmpty &&
+          shopState.balanceEuro == offer.weeklySalaryEuro * 30) {
+        shopState = const CareerShopState();
+      }
+      final matchResults = (json['matchResults'] as List<dynamic>? ?? const [])
+          .map(
+            (item) =>
+                CareerLeagueMatchResult.fromJson(item as Map<String, dynamic>),
+          )
+          .toList(growable: false);
 
       return SavedCareer(
         profile: profile,
@@ -113,6 +131,7 @@ class CareerSaveRepository {
         lastTrainingAttribute:
             progressJson?['lastTrainingAttribute'] as String?,
         shopState: shopState,
+        matchResults: matchResults,
         offer: offer,
       );
     } on Object {

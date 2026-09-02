@@ -4,6 +4,7 @@ import 'career/career_profile.dart';
 import 'career/career_save_repository.dart';
 import 'career/career_shop_state.dart';
 import 'career/fixture_generator.dart';
+import 'career/league_progress.dart';
 import 'career/offer_generator.dart';
 import 'data/football_repository.dart';
 import 'match/match_simulation.dart';
@@ -20,6 +21,7 @@ class CareerDashboardScreen extends StatefulWidget {
     this.lastTrainingWeek,
     this.lastTrainingAttribute,
     this.shopState,
+    this.matchResults = const <CareerLeagueMatchResult>[],
   });
 
   final CareerProfile profile;
@@ -28,6 +30,7 @@ class CareerDashboardScreen extends StatefulWidget {
   final int? lastTrainingWeek;
   final String? lastTrainingAttribute;
   final CareerShopState? shopState;
+  final List<CareerLeagueMatchResult> matchResults;
 
   @override
   State<CareerDashboardScreen> createState() => _CareerDashboardScreenState();
@@ -42,6 +45,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
   late final CareerSeasonFixture _fixture;
   late CareerShopState _shopState;
   late int _currentWeek;
+  late List<CareerLeagueMatchResult> _matchResults;
 
   @override
   void initState() {
@@ -53,6 +57,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
     _shopState =
         widget.shopState ??
         CareerShopState.initial(widget.offer.weeklySalaryEuro);
+    _matchResults = [...widget.matchResults];
     _fixture = CareerFixtureGenerator.generate(
       league: widget.offer.league,
       club: widget.offer.club,
@@ -69,8 +74,12 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) =>
-          _FixtureSheet(fixture: _fixture, league: widget.offer.league),
+      builder: (_) => _FixtureSheet(
+        fixture: _fixture,
+        league: widget.offer.league,
+        selectedClub: widget.offer.club,
+        results: _matchResults,
+      ),
     );
   }
 
@@ -86,6 +95,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       builder: (_) => _StandingsSheet(
         league: widget.offer.league,
         selectedClub: widget.offer.club,
+        results: _matchResults,
       ),
     );
   }
@@ -163,9 +173,16 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       ),
     );
     if (!mounted || result == null) return;
-    setState(
-      () => _currentWeek = (_currentWeek + 1).clamp(1, _fixture.matches.length),
+    final weekResults = CareerLeagueSimulator.simulateWeek(
+      league: widget.offer.league,
+      playerMatch: result,
+      seed: _profile.seed,
     );
+    setState(() {
+      _matchResults = [..._matchResults, ...weekResults];
+      _shopState = _shopState.credit(widget.offer.weeklySalaryEuro);
+      _currentWeek = (_currentWeek + 1).clamp(1, _fixture.matches.length);
+    });
     await CareerSaveRepository.save(
       profile: _profile,
       offer: widget.offer,
@@ -173,6 +190,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       lastTrainingWeek: _lastTrainingWeek,
       lastTrainingAttribute: _lastTrainingAttribute,
       shopState: _shopState,
+      matchResults: _matchResults,
     );
   }
 
@@ -230,6 +248,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       lastTrainingWeek: _currentWeek,
       lastTrainingAttribute: attribute.name,
       shopState: _shopState,
+      matchResults: _matchResults,
     );
     if (!mounted) return;
     final message = result.isSuccessful
@@ -287,6 +306,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       lastTrainingWeek: _lastTrainingWeek,
       lastTrainingAttribute: _lastTrainingAttribute,
       shopState: updatedShopState,
+      matchResults: _matchResults,
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -1018,10 +1038,17 @@ class _MatchClub extends StatelessWidget {
 }
 
 class _FixtureSheet extends StatelessWidget {
-  const _FixtureSheet({required this.fixture, required this.league});
+  const _FixtureSheet({
+    required this.fixture,
+    required this.league,
+    required this.selectedClub,
+    required this.results,
+  });
 
   final CareerSeasonFixture fixture;
   final CareerLeague league;
+  final CareerClub selectedClub;
+  final List<CareerLeagueMatchResult> results;
 
   @override
   Widget build(BuildContext context) {
@@ -1074,7 +1101,13 @@ class _FixtureSheet extends StatelessWidget {
               ),
             ),
             Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
-            Expanded(child: _FixtureList(matches: fixture.matches)),
+            Expanded(
+              child: _FixtureList(
+                matches: fixture.matches,
+                selectedClub: selectedClub,
+                results: results,
+              ),
+            ),
           ],
         ),
       ),
@@ -1083,9 +1116,15 @@ class _FixtureSheet extends StatelessWidget {
 }
 
 class _FixtureList extends StatelessWidget {
-  const _FixtureList({required this.matches});
+  const _FixtureList({
+    required this.matches,
+    required this.selectedClub,
+    required this.results,
+  });
 
   final List<CareerFixtureMatch> matches;
+  final CareerClub selectedClub;
+  final List<CareerLeagueMatchResult> results;
 
   @override
   Widget build(BuildContext context) {
@@ -1095,6 +1134,16 @@ class _FixtureList extends StatelessWidget {
       separatorBuilder: (_, _) => const SizedBox(height: 7),
       itemBuilder: (context, index) {
         final match = matches[index];
+        final result = results
+            .where(
+              (item) =>
+                  item.week == match.week &&
+                  ((item.homeClubId == selectedClub.id &&
+                          item.awayClubId == match.opponent.id) ||
+                      (item.awayClubId == selectedClub.id &&
+                          item.homeClubId == match.opponent.id)),
+            )
+            .firstOrNull;
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           decoration: BoxDecoration(
@@ -1163,13 +1212,20 @@ class _FixtureList extends StatelessWidget {
                   ],
                 ),
               ),
-              Text(
-                _shortDate(match.date),
-                style: const TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
+              if (result == null)
+                Text(
+                  _shortDate(match.date),
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
+                )
+              else
+                _FixtureResultBadge(
+                  key: Key('fixtureResult_${match.week}'),
+                  result: result,
+                  selectedClubId: selectedClub.id,
                 ),
-              ),
             ],
           ),
         );
@@ -1178,15 +1234,62 @@ class _FixtureList extends StatelessWidget {
   }
 }
 
-class _StandingsSheet extends StatelessWidget {
-  const _StandingsSheet({required this.league, required this.selectedClub});
+class _FixtureResultBadge extends StatelessWidget {
+  const _FixtureResultBadge({
+    super.key,
+    required this.result,
+    required this.selectedClubId,
+  });
 
-  final CareerLeague league;
-  final CareerClub selectedClub;
+  final CareerLeagueMatchResult result;
+  final int selectedClubId;
 
   @override
   Widget build(BuildContext context) {
-    final clubs = [...league.clubs]..sort((a, b) => a.name.compareTo(b.name));
+    final userIsHome = result.homeClubId == selectedClubId;
+    final userGoals = userIsHome ? result.homeGoals : result.awayGoals;
+    final opponentGoals = userIsHome ? result.awayGoals : result.homeGoals;
+    final color = userGoals > opponentGoals
+        ? const Color(0xFFC8FF4D)
+        : userGoals < opponentGoals
+        ? const Color(0xFFFF6577)
+        : const Color(0xFFFFD65A);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: color, width: 1.2),
+      ),
+      child: Text(
+        '$userGoals - $opponentGoals',
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _StandingsSheet extends StatelessWidget {
+  const _StandingsSheet({
+    required this.league,
+    required this.selectedClub,
+    required this.results,
+  });
+
+  final CareerLeague league;
+  final CareerClub selectedClub;
+  final List<CareerLeagueMatchResult> results;
+
+  @override
+  Widget build(BuildContext context) {
+    final standings = CareerLeagueSimulator.standings(
+      league: league,
+      results: results,
+    );
 
     return SafeArea(
       top: false,
@@ -1263,10 +1366,11 @@ class _StandingsSheet extends StatelessWidget {
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                itemCount: clubs.length,
+                itemCount: standings.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 6),
                 itemBuilder: (context, index) {
-                  final club = clubs[index];
+                  final standing = standings[index];
+                  final club = standing.club;
                   final selected = club.id == selectedClub.id;
                   return Container(
                     key: Key('standing_${club.id}'),
@@ -1313,9 +1417,12 @@ class _StandingsSheet extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const _StandingsValue(value: '0'),
-                        const _StandingsValue(value: '0'),
-                        const _StandingsValue(value: '0', strong: true),
+                        _StandingsValue(value: '${standing.played}'),
+                        _StandingsValue(value: '${standing.goalDifference}'),
+                        _StandingsValue(
+                          value: '${standing.points}',
+                          strong: true,
+                        ),
                       ],
                     ),
                   );

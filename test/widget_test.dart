@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:wonderkid/career/career_save_repository.dart';
+import 'package:wonderkid/career/league_progress.dart';
 import 'package:wonderkid/create_career_screen.dart';
 import 'package:wonderkid/career/career_profile.dart';
 import 'package:wonderkid/career/offer_generator.dart';
@@ -302,14 +303,27 @@ void main() {
 
     await tester.pumpWidget(
       WonderkidApp(
-        home: CareerDashboardScreen(profile: profile, offer: offer),
+        home: CareerDashboardScreen(
+          profile: profile,
+          offer: offer,
+          currentWeek: 2,
+          matchResults: const [
+            CareerLeagueMatchResult(
+              week: 1,
+              homeClubId: 1,
+              awayClubId: 2,
+              homeGoals: 1,
+              awayGoals: 0,
+            ),
+          ],
+        ),
       ),
     );
 
     expect(find.byKey(const Key('careerDashboard')), findsOneWidget);
     expect(find.text('KARİYER MERKEZİ'), findsNothing);
     expect(find.text('AĞUSTOS 2026'), findsOneWidget);
-    expect(find.text('2026 • 1. HAFTA'), findsOneWidget);
+    expect(find.text('2026 • 2. HAFTA'), findsOneWidget);
     expect(find.byKey(const Key('fcPlayerCard')), findsOneWidget);
     await tester.drag(find.byType(ListView).first, const Offset(0, -300));
     await tester.pumpAndSettle();
@@ -342,6 +356,8 @@ void main() {
     expect(find.byIcon(Icons.flight_rounded), findsOneWidget);
     expect(find.text('Ev sahibi'), findsNothing);
     expect(find.text('Deplasman'), findsNothing);
+    expect(find.byKey(const Key('fixtureResult_1')), findsOneWidget);
+    expect(find.text('1 - 0'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.close_rounded));
     await tester.pumpAndSettle();
 
@@ -374,6 +390,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('standingsSheet')), findsOneWidget);
     expect(find.text('PUAN DURUMU'), findsNWidgets(2));
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('standing_1')),
+        matching: find.text('3'),
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.byIcon(Icons.close_rounded));
     await tester.pumpAndSettle();
 
@@ -392,19 +415,12 @@ void main() {
     expect(find.byKey(const Key('shopCategory_skills')), findsOneWidget);
     expect(find.byKey(const Key('shopCategory_defense')), findsOneWidget);
     expect(find.text('Şehir Otomobili'), findsOneWidget);
-    expect(find.text('€270.000'), findsOneWidget);
+    expect(find.text('€0'), findsOneWidget);
+    expect(find.text('YETERSİZ'), findsWidgets);
     await tester.drag(find.byType(ListView).last, const Offset(0, -140));
     await tester.pumpAndSettle();
     expect(find.text('Sportif Hatchback'), findsOneWidget);
     expect(find.text('+0 PAC'), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('buyShopItem_vehicle_1')));
-    await tester.pumpAndSettle();
-    expect(find.text('+1 PAC'), findsNWidgets(2));
-    expect(find.text('SAHİP'), findsOneWidget);
-    await tester.drag(find.byType(ListView).last, const Offset(0, 300));
-    await tester.pumpAndSettle();
-    expect(find.text('€261.000'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('shopCategory_homes')));
     await tester.pumpAndSettle();

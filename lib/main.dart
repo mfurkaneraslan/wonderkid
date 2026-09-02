@@ -25,6 +25,12 @@ class WonderkidApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
         scaffoldBackgroundColor: const Color(0xFF071A12),
+        snackBarTheme: const SnackBarThemeData(
+          contentTextStyle: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         useMaterial3: true,
       ),
       home: home ?? const HomeScreen(),
@@ -74,6 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
           lastTrainingWeek: career.lastTrainingWeek,
           lastTrainingAttribute: career.lastTrainingAttribute,
           shopState: career.shopState,
+          matchResults: career.matchResults,
         ),
       ),
     );

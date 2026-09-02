@@ -5,7 +5,7 @@ class CareerShopState {
   });
 
   factory CareerShopState.initial(int weeklySalaryEuro) {
-    return CareerShopState(balanceEuro: weeklySalaryEuro * 30);
+    return const CareerShopState();
   }
 
   factory CareerShopState.fromJson(Map<String, dynamic> json) {
@@ -33,6 +33,13 @@ class CareerShopState {
     return CareerShopState(
       balanceEuro: balanceEuro - priceEuro,
       categoryLevels: {...categoryLevels, categoryId: level},
+    );
+  }
+
+  CareerShopState credit(int amountEuro) {
+    return CareerShopState(
+      balanceEuro: balanceEuro + amountEuro,
+      categoryLevels: categoryLevels,
     );
   }
 

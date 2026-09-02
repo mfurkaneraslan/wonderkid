@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wonderkid/career/career_profile.dart';
 import 'package:wonderkid/career/career_save_repository.dart';
 import 'package:wonderkid/career/career_shop_state.dart';
+import 'package:wonderkid/career/league_progress.dart';
 import 'package:wonderkid/career/offer_generator.dart';
 import 'package:wonderkid/data/football_repository.dart';
 
@@ -39,6 +40,15 @@ void main() {
       lastTrainingWeek: 3,
       lastTrainingAttribute: 'shooting',
       shopState: shopState,
+      matchResults: const [
+        CareerLeagueMatchResult(
+          week: 1,
+          homeClubId: 1,
+          awayClubId: 2,
+          homeGoals: 2,
+          awayGoals: 1,
+        ),
+      ],
     );
     final savedCareer = await CareerSaveRepository.load();
 
@@ -53,6 +63,8 @@ void main() {
     expect(savedCareer.lastTrainingAttribute, 'shooting');
     expect(savedCareer.shopState.balanceEuro, shopState.balanceEuro);
     expect(savedCareer.shopState.levelFor('vehicles'), 3);
+    expect(savedCareer.matchResults, hasLength(1));
+    expect(savedCareer.matchResults.single.homeGoals, 2);
     expect(savedCareer.offer.club.id, offer.club.id);
     expect(savedCareer.offer.league.id, offer.league.id);
     expect(savedCareer.offer.weeklySalaryEuro, offer.weeklySalaryEuro);
@@ -115,5 +127,11 @@ void main() {
 
     final capped = boosted.increaseAttributeBy('pace', 50);
     expect(capped.pace, 99);
+  });
+
+  test('a new career starts at zero and salary can be credited', () {
+    final initial = CareerShopState.initial(12750);
+    expect(initial.balanceEuro, 0);
+    expect(initial.credit(12750).balanceEuro, 12750);
   });
 }
