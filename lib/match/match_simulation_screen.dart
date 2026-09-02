@@ -43,7 +43,7 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
   void _startMatch() {
     if (_started) return;
     setState(() => _started = true);
-    _scheduleTick();
+    _scheduleTick(_normalTickDuration(1));
   }
 
   void _scheduleTick([Duration delay = const Duration(milliseconds: 70)]) {
@@ -55,6 +55,9 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
           nextMinute == widget.simulation.entryMinute;
       final goal = widget.simulation.events
           .where((event) => event.isGoal && event.minute == nextMinute)
+          .firstOrNull;
+      final playerAction = widget.simulation.events
+          .where((event) => !event.isGoal && event.minute == nextMinute)
           .firstOrNull;
       setState(() {
         _minute = nextMinute;
@@ -77,12 +80,25 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
         _finishMatch();
       } else {
         _scheduleTick(
-          goal == null
-              ? const Duration(milliseconds: 70)
-              : const Duration(milliseconds: 1200),
+          goal != null
+              ? const Duration(milliseconds: 1200)
+              : playerAction != null
+              ? const Duration(milliseconds: 650)
+              : _normalTickDuration(_minute + 1),
         );
       }
     });
+  }
+
+  Duration _normalTickDuration(int minute) {
+    final entryMinute = widget.simulation.entryMinute;
+    final exitMinute = widget.simulation.exitMinute;
+    final playerOnPitch =
+        entryMinute != null &&
+        exitMinute != null &&
+        minute >= entryMinute &&
+        minute <= exitMinute;
+    return Duration(milliseconds: playerOnPitch ? 125 : 70);
   }
 
   void _finishMatch() {

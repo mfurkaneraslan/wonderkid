@@ -191,19 +191,19 @@ void main() {
     expect(find.text('MAÇI BAŞLAT'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('matchPrimaryButton')));
-    await tester.pump(const Duration(milliseconds: 220));
+    await tester.pump(const Duration(milliseconds: 280));
 
     expect(find.byKey(const Key('substitutionBanner')), findsOneWidget);
     expect(find.text('OYUNA GİRDİN!'), findsOneWidget);
     expect(find.text('OYUNDA'), findsOneWidget);
 
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 150));
     expect(
       find.text('Furkan ortasını açtı, Piatek vurdu — üstten dışarı!'),
       findsOneWidget,
     );
 
-    for (var tick = 0; tick < 100; tick++) {
+    for (var tick = 0; tick < 220; tick++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
