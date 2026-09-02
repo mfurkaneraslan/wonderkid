@@ -24,9 +24,11 @@ class MatchSimulationScreen extends StatefulWidget {
 class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
   Timer? _timer;
   Timer? _goalTimer;
+  Timer? _substitutionTimer;
   int _minute = 0;
   bool _started = false;
   bool _finished = false;
+  bool _showSubstitutionBanner = false;
   CareerMatchEvent? _goalBanner;
 
   List<CareerMatchEvent> get _visibleEvents => widget.simulation.events
@@ -44,17 +46,27 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
     _scheduleTick();
   }
 
-  void _scheduleTick([Duration delay = const Duration(milliseconds: 38)]) {
+  void _scheduleTick([Duration delay = const Duration(milliseconds: 70)]) {
     _timer = Timer(delay, () {
       if (!mounted || _finished) return;
       final nextMinute = (_minute + 1).clamp(0, 90);
+      final playerEnters =
+          widget.simulation.squadStatus == PlayerSquadStatus.substitute &&
+          nextMinute == widget.simulation.entryMinute;
       final goal = widget.simulation.events
           .where((event) => event.minute == nextMinute)
           .firstOrNull;
       setState(() {
         _minute = nextMinute;
+        if (playerEnters) _showSubstitutionBanner = true;
         if (goal != null) _goalBanner = goal;
       });
+      if (playerEnters) {
+        _substitutionTimer?.cancel();
+        _substitutionTimer = Timer(const Duration(milliseconds: 1300), () {
+          if (mounted) setState(() => _showSubstitutionBanner = false);
+        });
+      }
       if (goal != null) {
         _goalTimer?.cancel();
         _goalTimer = Timer(const Duration(milliseconds: 850), () {
@@ -66,8 +78,8 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
       } else {
         _scheduleTick(
           goal == null
-              ? const Duration(milliseconds: 38)
-              : const Duration(milliseconds: 900),
+              ? const Duration(milliseconds: 70)
+              : const Duration(milliseconds: 1200),
         );
       }
     });
@@ -86,6 +98,7 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
   void dispose() {
     _timer?.cancel();
     _goalTimer?.cancel();
+    _substitutionTimer?.cancel();
     super.dispose();
   }
 
@@ -148,6 +161,8 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
                 _SquadStatusCard(
                   profile: widget.profile,
                   simulation: simulation,
+                  started: _started,
+                  minute: _minute,
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -215,7 +230,33 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
                       const SizedBox(height: 14),
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 180),
-                        child: _goalBanner == null
+                        child: _showSubstitutionBanner
+                            ? Container(
+                                key: const Key('substitutionBanner'),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 22,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFC8FF4D),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x66C8FF4D),
+                                      blurRadius: 28,
+                                    ),
+                                  ],
+                                ),
+                                child: const Text(
+                                  'OYUNA GİRDİN!',
+                                  style: TextStyle(
+                                    color: Color(0xFF092115),
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              )
+                            : _goalBanner == null
                             ? Text(
                                 !_started
                                     ? 'Maçı başlatmaya hazırsın.'
@@ -280,7 +321,7 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
                     icon: const Icon(Icons.play_arrow_rounded),
                     label: const Text(
                       'MAÇI BAŞLAT',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.5,
                       ),
@@ -297,18 +338,31 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
 }
 
 class _SquadStatusCard extends StatelessWidget {
-  const _SquadStatusCard({required this.profile, required this.simulation});
+  const _SquadStatusCard({
+    required this.profile,
+    required this.simulation,
+    required this.started,
+    required this.minute,
+  });
 
   final CareerProfile profile;
   final CareerMatchSimulation simulation;
+  final bool started;
+  final int minute;
 
   @override
   Widget build(BuildContext context) {
+    final enteredMatch =
+        simulation.squadStatus == PlayerSquadStatus.substitute &&
+        started &&
+        minute >= (simulation.entryMinute ?? 91);
     final detail = switch (simulation.squadStatus) {
       PlayerSquadStatus.starting =>
         '${profile.position} • İlk düdükle sahadasın',
       PlayerSquadStatus.substitute =>
-        '${profile.position} • ${simulation.entryMinute}. dakikada oyuna gireceksin',
+        enteredMatch
+            ? '${profile.position} • Şu anda sahadasın'
+            : '${profile.position} • Maça yedek başlayacaksın',
       PlayerSquadStatus.out => '${profile.position} • Bu maçta forma şansı yok',
     };
     return Container(
@@ -330,7 +384,7 @@ class _SquadStatusCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  simulation.squadStatus.label,
+                  enteredMatch ? 'OYUNDA' : simulation.squadStatus.label,
                   key: const Key('squadStatus'),
                   style: const TextStyle(
                     color: Color(0xFFC8FF4D),

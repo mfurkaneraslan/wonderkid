@@ -141,8 +141,8 @@ void main() {
       events: const [
         CareerMatchEvent(minute: 24, isHomeGoal: true, scorer: 'Furkan'),
       ],
-      squadStatus: PlayerSquadStatus.starting,
-      entryMinute: 1,
+      squadStatus: PlayerSquadStatus.substitute,
+      entryMinute: 3,
       exitMinute: 90,
       playerGoals: 1,
       playerAssists: 0,
@@ -164,13 +164,21 @@ void main() {
 
     expect(find.byKey(const Key('matchSimulationScreen')), findsOneWidget);
     expect(find.text('MAÇ GÜNÜ'), findsOneWidget);
-    expect(find.text('İLK 11'), findsOneWidget);
+    expect(find.text('YEDEK'), findsOneWidget);
+    expect(find.textContaining('3. dakikada'), findsNothing);
+    expect(find.textContaining('Maça yedek başlayacaksın'), findsOneWidget);
     expect(find.text('0  -  0'), findsOneWidget);
     expect(find.text('MAÇI BAŞLAT'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('matchPrimaryButton')));
-    for (var minute = 0; minute < 95; minute++) {
-      await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 220));
+
+    expect(find.byKey(const Key('substitutionBanner')), findsOneWidget);
+    expect(find.text('OYUNA GİRDİN!'), findsOneWidget);
+    expect(find.text('OYUNDA'), findsOneWidget);
+
+    for (var tick = 0; tick < 100; tick++) {
+      await tester.pump(const Duration(milliseconds: 100));
     }
 
     expect(find.byKey(const Key('matchPerformanceSummary')), findsOneWidget);
