@@ -67,6 +67,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   late final AnimationController _shotController;
   Timer? _timer;
   Timer? _countdownTimer;
+  Timer? _lifeLossTimer;
   Timer? _paceTickTimer;
   Timer? _shootingTargetTimer;
   Timer? _dribbleTimer;
@@ -82,6 +83,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   bool _finished = false;
   bool _hasStarted = false;
   int? _countdownValue;
+  bool _lifeLossPaused = false;
+  int _lifeLossSequence = 0;
   bool? _lastSuccess;
   final List<_PaceTarget> _paceTargets = [];
   double _shotFieldWidth = 0;
@@ -175,7 +178,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _timer?.cancel();
     if (widget.attribute == TrainingAttribute.passing) return;
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted || _finished) return;
+      if (!mounted || _finished || _lifeLossPaused) return;
       if (_secondsLeft <= 1) {
         setState(() => _secondsLeft = 0);
         _finish();
@@ -218,6 +221,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
         timer.cancel();
         return;
       }
+      if (_lifeLossPaused) return;
       if (_passingRevealStep >= _passingPattern.length) {
         timer.cancel();
         setState(() {
@@ -232,7 +236,12 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   void _recordPassingPoint(Offset position, Size size) {
-    if (_finished || _passingLocked || _passingShowingPattern) return;
+    if (_finished ||
+        _lifeLossPaused ||
+        _passingLocked ||
+        _passingShowingPattern) {
+      return;
+    }
     final node = _passingNodeAt(position, size);
     setState(() {
       _passingPointer = position;
@@ -273,7 +282,12 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   void _submitPassingPattern() {
-    if (_finished || _passingLocked || _passingInput.isEmpty) return;
+    if (_finished ||
+        _lifeLossPaused ||
+        _passingLocked ||
+        _passingInput.isEmpty) {
+      return;
+    }
     final success =
         _passingInput.length == _passingPattern.length &&
         List.generate(
@@ -283,15 +297,15 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     setState(() {
       _passingLocked = true;
       _passingPointer = null;
-      _lastSuccess = success;
       if (success) {
+        _lastSuccess = true;
         _score++;
-      } else {
-        _lives--;
       }
     });
 
-    if (_score >= 4 || _lives <= 0) {
+    if (!success) {
+      _loseLife(onResume: _startPassingPattern);
+    } else if (_score >= 4) {
       _finish();
     } else {
       _startPassingPattern();
@@ -338,6 +352,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void _updatePhysicalBalance() {
     if (!mounted ||
         _finished ||
+        _lifeLossPaused ||
         widget.attribute != TrainingAttribute.physical) {
       return;
     }
@@ -378,8 +393,6 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
 
       if (_physicalPosition.abs() >= 0.93) {
         fell = true;
-        _lives--;
-        _lastSuccess = false;
         _physicalPosition = 0;
         _physicalVelocity = 0;
         _physicalDrift = _random.nextBool() ? 0.78 : -0.78;
@@ -387,11 +400,15 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       }
     });
 
-    if (fell && _lives <= 0) _finish();
+    if (fell) _loseLife();
   }
 
   void _setPhysicalControl(int direction, bool pressed) {
-    if (_finished || widget.attribute != TrainingAttribute.physical) return;
+    if (_finished ||
+        _lifeLossPaused ||
+        widget.attribute != TrainingAttribute.physical) {
+      return;
+    }
     setState(() {
       if (direction < 0) {
         _physicalLeftHeld = pressed;
@@ -463,8 +480,9 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   void _updatePaceTargets() {
-    if (!mounted || _finished) return;
+    if (!mounted || _finished || _lifeLossPaused) return;
     var targetsToSpawn = 0;
+    var lostLife = false;
     setState(() {
       final expiredTargets = <_PaceTarget>[];
       for (final target in _paceTargets) {
@@ -475,36 +493,40 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
         }
         if (target.elapsed >= target.duration) {
           expiredTargets.add(target);
-          _lastSuccess = false;
-          _lives--;
+          lostLife = true;
         }
       }
       _paceTargets.removeWhere(expiredTargets.contains);
       for (var index = 0; index < targetsToSpawn; index++) {
         _spawnPaceTarget();
       }
-      if (_paceTargets.isEmpty && _lives > 0) _spawnPaceTarget();
+      if (_paceTargets.isEmpty && !lostLife) _spawnPaceTarget();
     });
-    if (_lives <= 0) _finish();
+    if (lostLife) {
+      _loseLife(
+        onResume: () {
+          if (_paceTargets.isEmpty) setState(_spawnPaceTarget);
+        },
+      );
+    }
   }
 
   void _answerPace(int selectedTarget) {
-    if (_finished) return;
+    if (_finished || _lifeLossPaused) return;
+    var success = false;
     setState(() {
       final targetIndex = _paceTargets.indexWhere(
         (target) => target.index == selectedTarget,
       );
-      final success = targetIndex >= 0;
-      _lastSuccess = success;
+      success = targetIndex >= 0;
       if (success) {
+        _lastSuccess = true;
         _paceTargets.removeAt(targetIndex);
         _score++;
-      } else {
-        _lives--;
       }
-      if (_paceTargets.isEmpty && _lives > 0) _spawnPaceTarget();
+      if (success && _paceTargets.isEmpty) _spawnPaceTarget();
     });
-    if (_lives <= 0) _finish();
+    if (!success) _loseLife();
   }
 
   void _startShootingTarget({bool initial = false}) {
@@ -541,8 +563,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
           _shotTargetVisible = false;
           _shotFeedback = 'SÜRE DOLDU';
         });
-        _answer(false);
-        if (!_finished && _lives > 0) _startShootingTarget();
+        _loseLife(onResume: _startShootingTarget);
       },
     );
   }
@@ -556,19 +577,27 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   );
 
   void _beginShot(DragStartDetails details) {
-    if (_finished || _shotAnimating || !_shotTargetVisible) return;
+    if (_finished || _lifeLossPaused || _shotAnimating || !_shotTargetVisible) {
+      return;
+    }
     _shotStartedFromBall =
         (details.localPosition - _shotBallCenter).distance <= 38;
     _shotDragEnd = details.localPosition;
   }
 
   void _updateShot(DragUpdateDetails details) {
-    if (!_shotStartedFromBall || _finished || _shotAnimating) return;
+    if (!_shotStartedFromBall ||
+        _finished ||
+        _lifeLossPaused ||
+        _shotAnimating) {
+      return;
+    }
     _shotDragEnd = details.localPosition;
   }
 
   void _releaseShot(DragEndDetails details) {
     if (_finished ||
+        _lifeLossPaused ||
         _shotAnimating ||
         !_shotTargetVisible ||
         !_shotStartedFromBall ||
@@ -609,12 +638,19 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     if (!mounted || _finished || !_shotAnimating) return;
     final success = _shotHitTarget == true;
     setState(() => _shotAnimating = false);
-    _answer(success);
-    if (success && _score >= 10) {
-      _finish();
-      return;
+    if (success) {
+      setState(() {
+        _lastSuccess = true;
+        _score++;
+      });
+      if (_score >= 10) {
+        _finish();
+      } else {
+        _startShootingTarget();
+      }
+    } else {
+      _loseLife(onResume: _startShootingTarget);
     }
-    if (!_finished && _lives > 0) _startShootingTarget();
   }
 
   void _spawnDribbleWave({bool initial = false}) {
@@ -661,7 +697,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   void _updateDribblePhysics() {
-    if (!mounted || _finished) return;
+    if (!mounted || _finished || _lifeLossPaused) return;
     final now = DateTime.now();
     final previous = _lastDribbleTick ?? now;
     _lastDribbleTick = now;
@@ -689,8 +725,6 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
             _coneTouchesPlayer(cone);
         if (hitsPlayer) {
           collision = true;
-          _lives--;
-          _lastSuccess = false;
           _dribbleInvulnerability = 0.45;
           removedCones.add(cone);
         } else if (cone.y > 1.08) {
@@ -706,7 +740,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       }
     });
 
-    if (collision && _lives <= 0) _finish();
+    if (collision) _loseLife();
   }
 
   bool _coneTouchesPlayer(_DribbleCone cone) {
@@ -785,6 +819,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void _updateDefendingCatch() {
     if (!mounted ||
         _finished ||
+        _lifeLossPaused ||
         widget.attribute != TrainingAttribute.defending) {
       return;
     }
@@ -803,6 +838,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
           1.18,
         );
     final removedBalls = <_DefendingBall>[];
+    var lostLife = false;
 
     setState(() {
       for (final ball in _defendingBalls) {
@@ -812,8 +848,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
           _lastSuccess = true;
           removedBalls.add(ball);
         } else if (ball.y > 1.08) {
-          _lives--;
-          _lastSuccess = false;
+          lostLife = true;
           removedBalls.add(ball);
         }
       }
@@ -824,7 +859,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       }
     });
 
-    if (_lives <= 0) _finish();
+    if (lostLife) _loseLife();
   }
 
   bool _ballTouchesDefendingCard(_DefendingBall ball) {
@@ -874,24 +909,33 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     return next;
   }
 
-  void _answer(bool success) {
-    if (_finished) return;
+  void _loseLife({VoidCallback? onResume}) {
+    if (_finished || _lifeLossPaused) return;
+    _lifeLossTimer?.cancel();
     setState(() {
-      _lastSuccess = success;
-      if (success) {
-        _score++;
-      } else {
-        _lives--;
-      }
-      _nextChallenge();
+      _lives--;
+      _lastSuccess = false;
+      _lifeLossPaused = true;
+      _lifeLossSequence++;
     });
-    if (_lives <= 0) _finish();
+    _lifeLossTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted || _finished) return;
+      if (_lives <= 0) {
+        _finish();
+        return;
+      }
+      setState(() => _lifeLossPaused = false);
+      _lastDribbleTick = DateTime.now();
+      _lastDefendingTick = DateTime.now();
+      onResume?.call();
+    });
   }
 
   void _finish() {
     if (_finished) return;
     _timer?.cancel();
     _countdownTimer?.cancel();
+    _lifeLossTimer?.cancel();
     _paceTickTimer?.cancel();
     _shootingTargetTimer?.cancel();
     _dribbleTimer?.cancel();
@@ -912,6 +956,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       _finished = false;
       _hasStarted = false;
       _countdownValue = null;
+      _lifeLossPaused = false;
       _lastSuccess = null;
       _shotAnimating = false;
       _shotHitTarget = null;
@@ -971,6 +1016,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void dispose() {
     _timer?.cancel();
     _countdownTimer?.cancel();
+    _lifeLossTimer?.cancel();
     _paceTickTimer?.cancel();
     _shootingTargetTimer?.cancel();
     _dribbleTimer?.cancel();
@@ -1015,7 +1061,20 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
                       countdownValue: _countdownValue,
                       onStart: _beginCountdown,
                     )
-                  : _playView(info),
+                  : Stack(
+                      children: [
+                        _playView(info),
+                        if (_lifeLossPaused)
+                          Positioned.fill(
+                            child: _LifeLostOverlay(
+                              key: ValueKey(
+                                'lifeLossOverlay$_lifeLossSequence',
+                              ),
+                              livesLeft: _lives,
+                            ),
+                          ),
+                      ],
+                    ),
             ),
           ),
         ),
@@ -1773,6 +1832,61 @@ class _TrainingStartView extends StatelessWidget {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+class _LifeLostOverlay extends StatelessWidget {
+  const _LifeLostOverlay({super.key, required this.livesLeft});
+
+  final int livesLeft;
+
+  @override
+  Widget build(BuildContext context) {
+    return AbsorbPointer(
+      key: const Key('lifeLossOverlay'),
+      child: ColoredBox(
+        color: const Color(0xFF071A12).withValues(alpha: 0.88),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 720),
+                curve: Curves.easeOutBack,
+                builder: (context, value, child) {
+                  final shake = sin(value * pi * 7) * (1 - value) * 0.16;
+                  return Transform.rotate(
+                    angle: shake,
+                    child: Transform.scale(
+                      scale: 0.45 + (value * 0.75),
+                      child: child,
+                    ),
+                  );
+                },
+                child: const Icon(
+                  Icons.heart_broken_rounded,
+                  key: Key('brokenHeartAnimation'),
+                  color: Color(0xFFFF5E72),
+                  size: 92,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                '$livesLeft CANIN KALDI',
+                key: const Key('livesLeftMessage'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

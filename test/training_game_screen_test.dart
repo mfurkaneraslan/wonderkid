@@ -151,8 +151,13 @@ void main() {
       findsNWidgets(9),
     );
 
-    await tester.pump(const Duration(seconds: 3));
-    await tester.pump();
+    for (final livesLeft in [2, 1, 0]) {
+      await tester.pump(const Duration(milliseconds: 1100));
+      expect(find.byKey(const Key('lifeLossOverlay')), findsOneWidget);
+      expect(find.text('$livesLeft CANIN KALDI'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
+    }
 
     expect(find.text('Süre dolmadan 3 hakkın da bitti.'), findsOneWidget);
     expect(find.textContaining('Gelişim kazanamadın'), findsOneWidget);
@@ -296,6 +301,18 @@ void main() {
       await tester.pump();
       expect(find.text('SÜRE DOLDU'), findsOneWidget);
       expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(2));
+      expect(find.byKey(const Key('lifeLossOverlay')), findsOneWidget);
+      expect(find.byKey(const Key('brokenHeartAnimation')), findsOneWidget);
+      expect(find.text('2 CANIN KALDI'), findsOneWidget);
+      expect(find.text('17 sn'), findsOneWidget);
+      expect(find.byKey(const Key('shootingTarget')), findsNothing);
+
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('17 sn'), findsOneWidget);
+      expect(find.byKey(const Key('lifeLossOverlay')), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      expect(find.byKey(const Key('lifeLossOverlay')), findsNothing);
       expect(find.byKey(const Key('shootingTarget')), findsOneWidget);
     },
   );
@@ -370,6 +387,10 @@ void main() {
       final centers = await _passingPatternCenters(tester);
       expect(centers.length, 6);
       await _drawPassingPattern(tester, centers.take(2).toList());
+      expect(find.byKey(const Key('lifeLossOverlay')), findsOneWidget);
+      expect(find.text('${2 - attempt} CANIN KALDI'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
     }
 
     expect(find.byKey(const Key('trainingResult')), findsOneWidget);
