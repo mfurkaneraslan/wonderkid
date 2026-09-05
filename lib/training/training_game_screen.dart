@@ -66,6 +66,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   final Random _random = Random();
   late final AnimationController _shotController;
   Timer? _timer;
+  Timer? _countdownTimer;
   Timer? _paceTickTimer;
   Timer? _shootingTargetTimer;
   Timer? _dribbleTimer;
@@ -79,6 +80,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   int _score = 0;
   int _target = 0;
   bool _finished = false;
+  bool _hasStarted = false;
+  int? _countdownValue;
   bool? _lastSuccess;
   final List<_PaceTarget> _paceTargets = [];
   double _shotFieldWidth = 0;
@@ -135,6 +138,30 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
           if (status == AnimationStatus.completed) _completeShot();
         });
     _nextChallenge(initial: true);
+  }
+
+  void _beginCountdown() {
+    if (_hasStarted || _countdownValue != null) return;
+    setState(() => _countdownValue = 3);
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_countdownValue! > 1) {
+        setState(() => _countdownValue = _countdownValue! - 1);
+        return;
+      }
+      timer.cancel();
+      setState(() {
+        _countdownValue = null;
+        _hasStarted = true;
+      });
+      _launchTraining();
+    });
+  }
+
+  void _launchTraining() {
     _startTimer();
     _startPaceChallenge();
     _startShootingTarget(initial: true);
@@ -864,6 +891,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void _finish() {
     if (_finished) return;
     _timer?.cancel();
+    _countdownTimer?.cancel();
     _paceTickTimer?.cancel();
     _shootingTargetTimer?.cancel();
     _dribbleTimer?.cancel();
@@ -882,6 +910,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       _lives = 3;
       _score = 0;
       _finished = false;
+      _hasStarted = false;
+      _countdownValue = null;
       _lastSuccess = null;
       _shotAnimating = false;
       _shotHitTarget = null;
@@ -910,13 +940,6 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       _nextChallenge(initial: true);
     });
     _shotController.reset();
-    _startTimer();
-    _startPaceChallenge();
-    _startShootingTarget(initial: true);
-    _startDribblePhysics();
-    _startPassingPattern(initial: true);
-    _startPhysicalBalance(initial: true);
-    _startDefendingCatch(initial: true);
   }
 
   TrainingResult get _result {
@@ -947,6 +970,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   @override
   void dispose() {
     _timer?.cancel();
+    _countdownTimer?.cancel();
     _paceTickTimer?.cancel();
     _shootingTargetTimer?.cancel();
     _dribbleTimer?.cancel();
@@ -985,6 +1009,12 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
               child: _finished
                   ? _ResultView(result: _result, onRetry: _restart)
+                  : !_hasStarted
+                  ? _TrainingStartView(
+                      info: info,
+                      countdownValue: _countdownValue,
+                      onStart: _beginCountdown,
+                    )
                   : _playView(info),
             ),
           ),
@@ -1644,6 +1674,106 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
           ],
         ),
       ],
+    );
+  }
+}
+
+class _TrainingStartView extends StatelessWidget {
+  const _TrainingStartView({
+    required this.info,
+    required this.countdownValue,
+    required this.onStart,
+  });
+
+  final _TrainingInfo info;
+  final int? countdownValue;
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext context) {
+    final countingDown = countdownValue != null;
+    return Center(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 180),
+        child: countingDown
+            ? Text(
+                '$countdownValue',
+                key: ValueKey('countdown_$countdownValue'),
+                style: const TextStyle(
+                  color: _TrainingGameScreenState._accent,
+                  fontSize: 96,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                ),
+              )
+            : Column(
+                key: const Key('trainingReadyView'),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 82,
+                    height: 82,
+                    decoration: BoxDecoration(
+                      color: _TrainingGameScreenState._accent.withValues(
+                        alpha: 0.12,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      info.icon,
+                      size: 42,
+                      color: _TrainingGameScreenState._accent,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Text(
+                    '${info.title.toUpperCase()} ANTRENMANI',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 9),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      info.instruction,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: 220,
+                    height: 54,
+                    child: FilledButton.icon(
+                      key: const Key('startTrainingButton'),
+                      onPressed: onStart,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _TrainingGameScreenState._accent,
+                        foregroundColor: const Color(0xFF092115),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(17),
+                        ),
+                      ),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text(
+                        'BAŞLAT',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.7,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 }

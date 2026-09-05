@@ -38,6 +38,20 @@ Future<void> _shootAtTarget(WidgetTester tester) async {
   await tester.pump();
 }
 
+Future<void> _startTraining(WidgetTester tester) async {
+  expect(find.byKey(const Key('trainingReadyView')), findsOneWidget);
+  await tester.tap(find.byKey(const Key('startTrainingButton')));
+  await tester.pump();
+  expect(find.byKey(const ValueKey('countdown_3')), findsOneWidget);
+  await tester.pump(const Duration(seconds: 1));
+  expect(find.byKey(const ValueKey('countdown_2')), findsOneWidget);
+  await tester.pump(const Duration(seconds: 1));
+  expect(find.byKey(const ValueKey('countdown_1')), findsOneWidget);
+  await tester.pump(const Duration(seconds: 1));
+  await tester.pump();
+  expect(find.byKey(const Key('startTrainingButton')), findsNothing);
+}
+
 void main() {
   testWidgets('every attribute opens its own training game', (tester) async {
     for (final attribute in TrainingAttribute.values) {
@@ -46,6 +60,9 @@ void main() {
       );
 
       expect(find.byKey(const Key('trainingGameScreen')), findsOneWidget);
+      expect(find.byKey(const Key('trainingTimer')), findsNothing);
+      expect(find.byKey(const Key('trainingLives')), findsNothing);
+      await _startTraining(tester);
       if (attribute == TrainingAttribute.passing) {
         expect(find.byKey(const Key('passingStatus')), findsOneWidget);
         expect(find.byKey(const Key('trainingTimer')), findsNothing);
@@ -69,6 +86,7 @@ void main() {
         home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
       ),
     );
+    await _startTraining(tester);
 
     for (var shot = 0; shot < 10; shot++) {
       await _shootAtTarget(tester);
@@ -93,6 +111,7 @@ void main() {
         ),
       ),
     );
+    await _startTraining(tester);
 
     for (var index = 0; index < 200; index++) {
       final activeTarget = find
@@ -121,6 +140,7 @@ void main() {
         home: TrainingGameScreen(attribute: TrainingAttribute.pace),
       ),
     );
+    await _startTraining(tester);
 
     expect(
       find.byWidgetPredicate(
@@ -146,6 +166,7 @@ void main() {
         home: TrainingGameScreen(attribute: TrainingAttribute.pace),
       ),
     );
+    await _startTraining(tester);
 
     Finder activeTargets() => find.byWidgetPredicate(
       (widget) =>
@@ -169,9 +190,11 @@ void main() {
         ),
       ),
     );
+    await _startTraining(tester);
     await tester.pump(const Duration(milliseconds: 700));
     expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(3));
 
+    await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpWidget(
       const MaterialApp(
         home: TrainingGameScreen(
@@ -180,6 +203,7 @@ void main() {
         ),
       ),
     );
+    await _startTraining(tester);
     await tester.pump(const Duration(milliseconds: 700));
     expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(2));
   });
@@ -192,6 +216,7 @@ void main() {
         home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
       ),
     );
+    await _startTraining(tester);
 
     expect(find.byKey(const Key('shootingGoal')), findsOneWidget);
     expect(find.byKey(const Key('shootingBall')), findsOneWidget);
@@ -212,6 +237,7 @@ void main() {
         home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
       ),
     );
+    await _startTraining(tester);
 
     final ballCenter = tester.getCenter(find.byKey(const Key('shootingBall')));
     final targetCenter = tester.getCenter(
@@ -238,6 +264,7 @@ void main() {
         home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
       ),
     );
+    await _startTraining(tester);
 
     final ballCenter = tester.getCenter(find.byKey(const Key('shootingBall')));
     final fieldTopLeft = tester.getTopLeft(
@@ -262,6 +289,7 @@ void main() {
           home: TrainingGameScreen(attribute: TrainingAttribute.shooting),
         ),
       );
+      await _startTraining(tester);
 
       expect(find.byKey(const Key('shootingTarget')), findsOneWidget);
       await tester.pump(const Duration(seconds: 3));
@@ -283,9 +311,11 @@ void main() {
         ),
       ),
     );
+    await _startTraining(tester);
     await tester.pump(const Duration(milliseconds: 2400));
     expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(3));
 
+    await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpWidget(
       const MaterialApp(
         home: TrainingGameScreen(
@@ -294,6 +324,7 @@ void main() {
         ),
       ),
     );
+    await _startTraining(tester);
     await tester.pump(const Duration(milliseconds: 2400));
     expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(2));
   });
@@ -306,6 +337,7 @@ void main() {
         home: TrainingGameScreen(attribute: TrainingAttribute.passing),
       ),
     );
+    await _startTraining(tester);
 
     expect(find.text('DESENİ İZLE'), findsOneWidget);
     expect(find.byKey(const Key('trainingTimer')), findsNothing);
@@ -332,6 +364,7 @@ void main() {
         home: TrainingGameScreen(attribute: TrainingAttribute.passing),
       ),
     );
+    await _startTraining(tester);
 
     for (var attempt = 0; attempt < 3; attempt++) {
       final centers = await _passingPatternCenters(tester);
@@ -355,9 +388,11 @@ void main() {
         ),
       ),
     );
+    await _startTraining(tester);
     await tester.pump(const Duration(milliseconds: 2400));
     expect(find.text('DESENİ İZLE'), findsOneWidget);
 
+    await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpWidget(
       const MaterialApp(
         home: TrainingGameScreen(
@@ -366,6 +401,7 @@ void main() {
         ),
       ),
     );
+    await _startTraining(tester);
     await tester.pump(const Duration(milliseconds: 2400));
     expect(find.text('SIRA SENDE'), findsOneWidget);
   });
@@ -378,6 +414,7 @@ void main() {
         home: TrainingGameScreen(attribute: TrainingAttribute.physical),
       ),
     );
+    await _startTraining(tester);
 
     final board = find.byKey(const Key('physicalBalanceBoard'));
     final indicator = find.byKey(const Key('physicalIndicator'));
@@ -409,6 +446,7 @@ void main() {
         home: TrainingGameScreen(attribute: TrainingAttribute.physical),
       ),
     );
+    await _startTraining(tester);
 
     await tester.pump(const Duration(seconds: 20));
     await tester.pump();
@@ -425,6 +463,7 @@ void main() {
         home: TrainingGameScreen(attribute: TrainingAttribute.defending),
       ),
     );
+    await _startTraining(tester);
 
     final dragArea = find.byKey(const Key('defendingDragArea'));
     final card = find.byKey(const Key('defendingPlayerCard'));
@@ -465,6 +504,7 @@ void main() {
         home: TrainingGameScreen(attribute: TrainingAttribute.dribbling),
       ),
     );
+    await _startTraining(tester);
 
     final player = find.byKey(const Key('dribblingPlayer'));
     final before = tester.getCenter(player).dx;
