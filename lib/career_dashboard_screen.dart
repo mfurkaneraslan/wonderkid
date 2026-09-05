@@ -525,6 +525,9 @@ class _TrainingTab extends StatelessWidget {
             subtitle: trainedThisWeek
                 ? 'Bu haftaki antrenmanını tamamladın'
                 : 'Bu hafta bir antrenman yapabilirsin',
+            trailing: _OverallProgressIndicator(
+              progress: profile.overallProgress,
+            ),
           ),
           const SizedBox(height: 18),
           const _SectionTitle(title: 'ANTRENMANINI SEÇ'),
@@ -1634,12 +1637,14 @@ class _StatusBanner extends StatelessWidget {
     required this.title,
     required this.value,
     required this.subtitle,
+    this.trailing,
   });
 
   final IconData icon;
   final String title;
   final String value;
   final String subtitle;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -1688,6 +1693,66 @@ class _StatusBanner extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+          if (trailing != null) ...[const SizedBox(width: 12), trailing!],
+        ],
+      ),
+    );
+  }
+}
+
+class _OverallProgressIndicator extends StatelessWidget {
+  const _OverallProgressIndicator({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedProgress = progress.clamp(0.0, 1.0);
+    final percentage = (normalizedProgress * 100).floor().clamp(0, 99);
+    return SizedBox(
+      key: const Key('overallProgressIndicator'),
+      width: 68,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox.expand(
+                  child: CircularProgressIndicator(
+                    value: normalizedProgress,
+                    strokeWidth: 4,
+                    backgroundColor: Colors.white.withValues(alpha: 0.08),
+                    color: const Color(0xFFC8FF4D),
+                    strokeCap: StrokeCap.round,
+                  ),
+                ),
+                Text(
+                  '%$percentage',
+                  key: const Key('overallProgressPercentage'),
+                  style: const TextStyle(
+                    color: Color(0xFFC8FF4D),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'SONRAKİ OVR',
+            maxLines: 1,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.42),
+              fontSize: 7,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
             ),
           ),
         ],

@@ -273,7 +273,7 @@ void main() {
       nationality: 'Türkiye',
       shirtNumber: 7,
       position: 'ST',
-    );
+    ).increaseAttribute('shooting');
     const club = CareerClub(
       id: 1,
       name: 'Wonderkid FC',
@@ -364,6 +364,10 @@ void main() {
     await tester.tap(find.byKey(const Key('trainingTab')));
     await tester.pumpAndSettle();
     expect(find.text('ANTRENMANINI SEÇ'), findsOneWidget);
+    expect(find.byKey(const Key('overallProgressIndicator')), findsOneWidget);
+    expect(find.byKey(const Key('overallProgressPercentage')), findsOneWidget);
+    expect(find.text('%27'), findsOneWidget);
+    expect(find.text('SONRAKİ OVR'), findsOneWidget);
     expect(find.byKey(const Key('paceTrainingCard')), findsOneWidget);
     expect(find.byKey(const Key('shootingTrainingCard')), findsOneWidget);
     expect(find.byKey(const Key('passingTrainingCard')), findsOneWidget);
