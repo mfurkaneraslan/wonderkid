@@ -19,7 +19,7 @@ extension TrainingAttributeLabel on TrainingAttribute {
     TrainingAttribute.pace => 'Hız',
     TrainingAttribute.shooting => 'Şut',
     TrainingAttribute.passing => 'Pas',
-    TrainingAttribute.dribbling => 'Dribbling',
+    TrainingAttribute.dribbling => 'Top Sürme',
     TrainingAttribute.defending => 'Defans',
     TrainingAttribute.physical => 'Fizik',
   };
@@ -2718,7 +2718,7 @@ _TrainingInfo _trainingInfo(TrainingAttribute attribute) => switch (attribute) {
     icon: Icons.route_rounded,
   ),
   TrainingAttribute.dribbling => const _TrainingInfo(
-    title: 'Dribbling',
+    title: 'Top Sürme',
     instruction: 'Oyuncunu sürükle, akan konilerden kaç.',
     icon: Icons.multiple_stop_rounded,
   ),

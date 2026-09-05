@@ -108,8 +108,8 @@ class FcPlayerCard extends StatelessWidget {
                           Expanded(
                             child: _StatColumn(
                               stats: [
-                                _CardStat('PAC', profile.pace),
-                                _CardStat('SHO', profile.shooting),
+                                _CardStat('HIZ', profile.pace),
+                                _CardStat('ŞUT', profile.shooting),
                                 _CardStat('PAS', profile.passing),
                               ],
                             ),
@@ -122,9 +122,9 @@ class FcPlayerCard extends StatelessWidget {
                           Expanded(
                             child: _StatColumn(
                               stats: [
-                                _CardStat('DRI', profile.dribbling),
-                                _CardStat('DEF', profile.defending),
-                                _CardStat('PHY', profile.physical),
+                                _CardStat('SÜR', profile.dribbling),
+                                _CardStat('SAV', profile.defending),
+                                _CardStat('FİZ', profile.physical),
                               ],
                             ),
                           ),

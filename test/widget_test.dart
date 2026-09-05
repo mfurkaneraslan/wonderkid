@@ -238,12 +238,12 @@ void main() {
     expect(find.byKey(const Key('fcPlayerCard')), findsOneWidget);
     expect(find.byKey(const Key('cardOverall')), findsOneWidget);
     expect(find.byKey(const Key('cardPosition')), findsOneWidget);
-    expect(find.text('PAC'), findsOneWidget);
-    expect(find.text('SHO'), findsOneWidget);
+    expect(find.text('HIZ'), findsOneWidget);
+    expect(find.text('ŞUT'), findsOneWidget);
     expect(find.text('PAS'), findsOneWidget);
-    expect(find.text('DRI'), findsOneWidget);
-    expect(find.text('DEF'), findsOneWidget);
-    expect(find.text('PHY'), findsOneWidget);
+    expect(find.text('SÜR'), findsOneWidget);
+    expect(find.text('SAV'), findsOneWidget);
+    expect(find.text('FİZ'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('confirmPlayerButton')));
     await tester.pump();
@@ -425,7 +425,7 @@ void main() {
     await tester.drag(find.byType(ListView).last, const Offset(0, -140));
     await tester.pumpAndSettle();
     expect(find.text('Sportif Hatchback'), findsOneWidget);
-    expect(find.text('+0 PAC'), findsOneWidget);
+    expect(find.text('+0 HIZ'), findsOneWidget);
     for (var scroll = 0; scroll < 4; scroll++) {
       await tester.drag(find.byType(ListView).last, const Offset(0, -300));
       await tester.pumpAndSettle();
@@ -443,7 +443,7 @@ void main() {
     await tester.drag(find.byType(ListView).last, const Offset(0, -140));
     await tester.pumpAndSettle();
     expect(find.text('Şehir Dairesi'), findsOneWidget);
-    expect(find.text('+0 PHY'), findsOneWidget);
+    expect(find.text('+0 FİZ'), findsOneWidget);
   });
 
   testWidgets('two trainings can be completed each week', (tester) async {
@@ -496,10 +496,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('0 / 2'), findsOneWidget);
-    expect(
-      find.text('Bu haftaki iki antrenmanını tamamladın'),
-      findsOneWidget,
-    );
+    expect(find.text('Bu haftaki iki antrenmanını tamamladın'), findsOneWidget);
     final paceInkWell = find.descendant(
       of: find.byKey(const Key('paceTrainingCard')),
       matching: find.byType(InkWell),

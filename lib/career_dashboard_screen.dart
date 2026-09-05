@@ -579,7 +579,7 @@ class _TrainingTab extends StatelessWidget {
           _TrainingCard(
             key: const Key('dribblingTrainingCard'),
             icon: Icons.multiple_stop_rounded,
-            title: 'Dribbling',
+            title: 'Top Sürme',
             onTap: trainedThisWeek || previousWeekAttribute == 'dribbling'
                 ? null
                 : () => onStartTraining(TrainingAttribute.dribbling),
@@ -1912,12 +1912,12 @@ class _AttributeGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final attributes = [
-      ('PAC', profile.pace),
-      ('SHO', profile.shooting),
+      ('HIZ', profile.pace),
+      ('ŞUT', profile.shooting),
       ('PAS', profile.passing),
-      ('DRI', profile.dribbling),
-      ('DEF', profile.defending),
-      ('PHY', profile.physical),
+      ('SÜR', profile.dribbling),
+      ('SAV', profile.defending),
+      ('FİZ', profile.physical),
     ];
     return GridView.builder(
       shrinkWrap: true,
@@ -2049,13 +2049,40 @@ class _ShopItemCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 60,
+            height: 60,
+            padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
-              color: const Color(0xFFC8FF4D).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFFC8FF4D).withValues(alpha: 0.18),
+                  const Color(0xFFD89B2B).withValues(alpha: 0.12),
+                  const Color(0xFF0B2A1B),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFC8FF4D).withValues(alpha: 0.22),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFC8FF4D).withValues(alpha: 0.08),
+                  blurRadius: 12,
+                ),
+              ],
             ),
-            child: Icon(item.icon, color: const Color(0xFFC8FF4D), size: 25),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(13),
+              child: Image.asset(
+                item.assetPath,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+                errorBuilder: (_, _, _) =>
+                    Icon(item.icon, color: const Color(0xFFC8FF4D), size: 27),
+              ),
+            ),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -2142,6 +2169,7 @@ class _ShopCategory {
   final String attribute;
   final String attributeLabel;
   final IconData icon;
+
   final List<_ShopItem> items;
 }
 
@@ -2162,6 +2190,8 @@ class _ShopItem {
   final int bonus;
   final IconData icon;
 
+  String get assetPath => 'assets/shop/${categoryId}_$bonus.png';
+
   int priceFor(int weeklySalaryEuro, {required int currentLevel}) {
     final upgradeLevels = bonus - currentLevel;
     if (upgradeLevels <= 0) return 0;
@@ -2173,12 +2203,12 @@ class _ShopItem {
 }
 
 String _attributeShortLabel(String attribute) => switch (attribute) {
-  'pace' => 'PAC',
-  'shooting' => 'SHO',
+  'pace' => 'HIZ',
+  'shooting' => 'ŞUT',
   'passing' => 'PAS',
-  'dribbling' => 'DRI',
-  'defending' => 'DEF',
-  'physical' => 'PHY',
+  'dribbling' => 'SÜR',
+  'defending' => 'SAV',
+  'physical' => 'FİZ',
   _ => attribute.toUpperCase(),
 };
 
@@ -2383,7 +2413,7 @@ const _shopCategories = <_ShopCategory>[
     id: 'skills',
     title: 'Beceri',
     attribute: 'dribbling',
-    attributeLabel: 'Dribbling',
+    attributeLabel: 'Top Sürme',
     icon: Icons.sports_soccer_outlined,
     items: [
       _ShopItem(
