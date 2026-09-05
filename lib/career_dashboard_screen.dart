@@ -2148,7 +2148,10 @@ class _ShopItem {
   int priceFor(int weeklySalaryEuro, {required int currentLevel}) {
     final upgradeLevels = bonus - currentLevel;
     if (upgradeLevels <= 0) return 0;
-    return ((weeklySalaryEuro * upgradeLevels) / 250).round() * 250;
+    final targetCostUnits = bonus * bonus * 2;
+    final ownedCostUnits = currentLevel * currentLevel * 2;
+    final salaryUnits = targetCostUnits - ownedCostUnits;
+    return ((weeklySalaryEuro * salaryUnits) / 100).round() * 100;
   }
 }
 

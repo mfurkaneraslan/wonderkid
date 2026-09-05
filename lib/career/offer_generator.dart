@@ -106,12 +106,12 @@ class CareerOfferEngine {
       _ => 'Gelişim oyuncusu',
     };
     final rawSalary =
-        2000 +
-        (candidate.club.rating - 65) * 550 +
-        (profile.overall - 60) * 750 +
-        (candidate.club.id % 5) * 250;
+        750 +
+        (candidate.club.rating - 65) * 160 +
+        (profile.overall - 60) * 220 +
+        (candidate.club.id % 5) * 100;
     final weeklySalaryEuro =
-        (rawSalary.clamp(3000, 25000).toInt() / 250).round() * 250;
+        (rawSalary.clamp(1500, 5000).toInt() / 100).round() * 100;
     return ClubOffer(
       club: candidate.club,
       league: candidate.league,

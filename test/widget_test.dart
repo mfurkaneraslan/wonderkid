@@ -420,11 +420,22 @@ void main() {
     expect(find.byKey(const Key('shopCategory_defense')), findsOneWidget);
     expect(find.text('Şehir Otomobili'), findsOneWidget);
     expect(find.text('€0'), findsOneWidget);
+    expect(find.text('€18.000'), findsOneWidget);
     expect(find.text('YETERSİZ'), findsWidgets);
     await tester.drag(find.byType(ListView).last, const Offset(0, -140));
     await tester.pumpAndSettle();
     expect(find.text('Sportif Hatchback'), findsOneWidget);
     expect(find.text('+0 PAC'), findsOneWidget);
+    for (var scroll = 0; scroll < 4; scroll++) {
+      await tester.drag(find.byType(ListView).last, const Offset(0, -300));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Özel Hypercar'), findsOneWidget);
+    expect(find.text('€450.000'), findsOneWidget);
+    for (var scroll = 0; scroll < 4; scroll++) {
+      await tester.drag(find.byType(ListView).last, const Offset(0, 300));
+      await tester.pumpAndSettle();
+    }
 
     await tester.tap(find.byKey(const Key('shopCategory_homes')));
     await tester.pumpAndSettle();

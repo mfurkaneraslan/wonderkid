@@ -45,7 +45,8 @@ void main() {
     expect(offers.every((offer) => offer.club.rating <= 78), isTrue);
     expect(offers.every((offer) => offer.competitors.isNotEmpty), isTrue);
     expect(offers.every((offer) => offer.contractYears == 1), isTrue);
-    expect(offers.every((offer) => offer.weeklySalaryEuro >= 3000), isTrue);
+    expect(offers.every((offer) => offer.weeklySalaryEuro >= 1500), isTrue);
+    expect(offers.every((offer) => offer.weeklySalaryEuro <= 5000), isTrue);
     expect(
       repeated.map((offer) => offer.club.id),
       offers.map((offer) => offer.club.id),
