@@ -454,13 +454,13 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       0.0,
       1.0,
     );
-    final startMilliseconds = 1000 - (_statDifficultyTier * 150);
-    final endMilliseconds = 500 - (_statDifficultyTier * 70);
+    final startMilliseconds = 1200 - (_statDifficultyTier * 100);
+    final endMilliseconds = 650 - (_statDifficultyTier * 50);
     final responseMilliseconds =
         startMilliseconds -
         ((startMilliseconds - endMilliseconds) * elapsedRatio);
     return Duration(
-      milliseconds: responseMilliseconds.round().clamp(280, 1300),
+      milliseconds: responseMilliseconds.round().clamp(400, 1500),
     );
   }
 
@@ -581,7 +581,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       return;
     }
     _shotStartedFromBall =
-        (details.localPosition - _shotBallCenter).distance <= 38;
+        (details.localPosition - _shotBallCenter).distance <= 48;
     _shotDragEnd = details.localPosition;
   }
 
@@ -607,7 +607,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       return;
     }
 
-    final minimumSwipeSpeed = 700 + (_statDifficultyTier * 75);
+    final minimumSwipeSpeed = 520 + (_statDifficultyTier * 50);
     final swipeSpeed = details.velocity.pixelsPerSecond.distance;
     if (swipeSpeed < minimumSwipeSpeed) {
       setState(() {
@@ -620,7 +620,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
 
     _shootingTargetTimer?.cancel();
     final destination = _shotDragEnd!;
-    final targetRadius = (34 - (_statDifficultyTier * 2)).clamp(28, 38);
+    final targetRadius = (48 - (_statDifficultyTier * 2)).clamp(40, 54);
     final hitTarget =
         (destination - _shotTargetCenter).distance <= targetRadius;
     setState(() {
@@ -1294,10 +1294,10 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
                   ),
                   if (_shotTargetVisible)
                     Positioned(
-                      left: _shotTargetCenter.dx - 28,
-                      top: _shotTargetCenter.dy - 28,
-                      width: 56,
-                      height: 56,
+                      left: _shotTargetCenter.dx - 32,
+                      top: _shotTargetCenter.dy - 32,
+                      width: 64,
+                      height: 64,
                       child: Container(
                         key: const Key('shootingTarget'),
                         decoration: BoxDecoration(

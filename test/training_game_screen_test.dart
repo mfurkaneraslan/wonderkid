@@ -152,7 +152,7 @@ void main() {
     );
 
     for (final livesLeft in [2, 1, 0]) {
-      await tester.pump(const Duration(milliseconds: 1100));
+      await tester.pump(const Duration(milliseconds: 1300));
       expect(find.byKey(const Key('lifeLossOverlay')), findsOneWidget);
       expect(find.text('$livesLeft CANIN KALDI'), findsOneWidget);
       await tester.pump(const Duration(seconds: 2));
@@ -182,7 +182,7 @@ void main() {
     );
 
     expect(activeTargets(), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 510));
+    await tester.pump(const Duration(milliseconds: 610));
     expect(activeTargets(), findsNWidgets(2));
   });
 
@@ -196,7 +196,7 @@ void main() {
       ),
     );
     await _startTraining(tester);
-    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pump(const Duration(milliseconds: 950));
     expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(3));
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -209,7 +209,7 @@ void main() {
       ),
     );
     await _startTraining(tester);
-    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pump(const Duration(milliseconds: 950));
     expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(2));
   });
 
