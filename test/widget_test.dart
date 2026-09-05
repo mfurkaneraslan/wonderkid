@@ -446,7 +446,7 @@ void main() {
     expect(find.text('+0 PHY'), findsOneWidget);
   });
 
-  testWidgets('only one training can be completed each week', (tester) async {
+  testWidgets('two trainings can be completed each week', (tester) async {
     final profile = CareerProfile.create(
       name: 'Furkan Eraslan',
       nationality: 'Türkiye',
@@ -488,14 +488,18 @@ void main() {
           currentWeek: 2,
           lastTrainingWeek: 2,
           lastTrainingAttribute: 'shooting',
+          trainingsCompletedThisWeek: 2,
         ),
       ),
     );
     await tester.tap(find.byKey(const Key('trainingTab')));
     await tester.pumpAndSettle();
 
-    expect(find.text('0 / 1'), findsOneWidget);
-    expect(find.text('Bu haftaki antrenmanını tamamladın'), findsOneWidget);
+    expect(find.text('0 / 2'), findsOneWidget);
+    expect(
+      find.text('Bu haftaki iki antrenmanını tamamladın'),
+      findsOneWidget,
+    );
     final paceInkWell = find.descendant(
       of: find.byKey(const Key('paceTrainingCard')),
       matching: find.byType(InkWell),

@@ -37,8 +37,9 @@ void main() {
       profile: trainedProfile,
       offer: offer,
       currentWeek: 4,
-      lastTrainingWeek: 3,
+      lastTrainingWeek: 4,
       lastTrainingAttribute: 'shooting',
+      trainingsCompletedThisWeek: 2,
       shopState: shopState,
       matchResults: const [
         CareerLeagueMatchResult(
@@ -59,8 +60,9 @@ void main() {
     expect(savedCareer.profile.overallProgress, trainedProfile.overallProgress);
     expect(savedCareer.profile.shooting, profile.shooting + 1);
     expect(savedCareer.currentWeek, 4);
-    expect(savedCareer.lastTrainingWeek, 3);
+    expect(savedCareer.lastTrainingWeek, 4);
     expect(savedCareer.lastTrainingAttribute, 'shooting');
+    expect(savedCareer.trainingsCompletedThisWeek, 2);
     expect(savedCareer.shopState.balanceEuro, shopState.balanceEuro);
     expect(savedCareer.shopState.levelFor('vehicles'), 3);
     expect(savedCareer.matchResults, hasLength(1));

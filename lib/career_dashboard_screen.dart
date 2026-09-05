@@ -20,6 +20,7 @@ class CareerDashboardScreen extends StatefulWidget {
     this.currentWeek = 1,
     this.lastTrainingWeek,
     this.lastTrainingAttribute,
+    this.trainingsCompletedThisWeek,
     this.shopState,
     this.matchResults = const <CareerLeagueMatchResult>[],
   });
@@ -29,6 +30,7 @@ class CareerDashboardScreen extends StatefulWidget {
   final int currentWeek;
   final int? lastTrainingWeek;
   final String? lastTrainingAttribute;
+  final int? trainingsCompletedThisWeek;
   final CareerShopState? shopState;
   final List<CareerLeagueMatchResult> matchResults;
 
@@ -42,6 +44,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
   late CareerProfile _profile;
   late int? _lastTrainingWeek;
   late String? _lastTrainingAttribute;
+  late int _trainingsCompletedThisWeek;
   late final CareerSeasonFixture _fixture;
   late CareerShopState _shopState;
   late int _currentWeek;
@@ -54,6 +57,9 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
     _currentWeek = widget.currentWeek;
     _lastTrainingWeek = widget.lastTrainingWeek;
     _lastTrainingAttribute = widget.lastTrainingAttribute;
+    _trainingsCompletedThisWeek =
+        widget.trainingsCompletedThisWeek ??
+        (_lastTrainingWeek == _currentWeek ? 1 : 0);
     _shopState =
         widget.shopState ??
         CareerShopState.initial(widget.offer.weeklySalaryEuro);
@@ -101,7 +107,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
   }
 
   Future<void> _playNextMatch() async {
-    if (_lastTrainingWeek != _currentWeek) {
+    if (_trainingsCompletedThisWeek == 0) {
       final skipTraining = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -182,6 +188,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       _matchResults = [..._matchResults, ...weekResults];
       _shopState = _shopState.credit(widget.offer.weeklySalaryEuro);
       _currentWeek = (_currentWeek + 1).clamp(1, _fixture.matches.length);
+      _trainingsCompletedThisWeek = 0;
     });
     await CareerSaveRepository.save(
       profile: _profile,
@@ -189,20 +196,21 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       currentWeek: _currentWeek,
       lastTrainingWeek: _lastTrainingWeek,
       lastTrainingAttribute: _lastTrainingAttribute,
+      trainingsCompletedThisWeek: _trainingsCompletedThisWeek,
       shopState: _shopState,
       matchResults: _matchResults,
     );
   }
 
   Future<void> _openTraining(TrainingAttribute attribute) async {
-    if (_lastTrainingWeek == _currentWeek) {
+    if (_trainingsCompletedThisWeek >= 2) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           const SnackBar(
             behavior: SnackBarBehavior.floating,
             backgroundColor: Color(0xFF183A29),
-            content: Text('Bu haftaki antrenmanını tamamladın.'),
+            content: Text('Bu haftaki iki antrenmanını tamamladın.'),
           ),
         );
       return;
@@ -240,6 +248,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       _profile = updatedProfile;
       _lastTrainingWeek = _currentWeek;
       _lastTrainingAttribute = attribute.name;
+      _trainingsCompletedThisWeek++;
     });
     await CareerSaveRepository.save(
       profile: updatedProfile,
@@ -247,11 +256,14 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       currentWeek: _currentWeek,
       lastTrainingWeek: _currentWeek,
       lastTrainingAttribute: attribute.name,
+      trainingsCompletedThisWeek: _trainingsCompletedThisWeek,
       shopState: _shopState,
       matchResults: _matchResults,
     );
     if (!mounted) return;
-    final message = result.isSuccessful
+    final message = result.wasAbandoned
+        ? 'Antrenmanı yarıda bıraktın. Bir hakkın kullanıldı.'
+        : result.isSuccessful
         ? '${attribute.turkishLabel} özelliğin ${formatCareerAttribute(statIncrease)} puan arttı.'
         : 'Antrenman tamamlandı ancak özellik puanı kazanamadın.';
     ScaffoldMessenger.of(context)
@@ -305,6 +317,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
       currentWeek: _currentWeek,
       lastTrainingWeek: _lastTrainingWeek,
       lastTrainingAttribute: _lastTrainingAttribute,
+      trainingsCompletedThisWeek: _trainingsCompletedThisWeek,
       shopState: updatedShopState,
       matchResults: _matchResults,
     );
@@ -338,6 +351,7 @@ class _CareerDashboardScreenState extends State<CareerDashboardScreen> {
         currentWeek: _currentWeek,
         lastTrainingWeek: _lastTrainingWeek,
         lastTrainingAttribute: _lastTrainingAttribute,
+        trainingsCompletedThisWeek: _trainingsCompletedThisWeek,
         onStartTraining: _openTraining,
       ),
       _TeamTab(
@@ -498,6 +512,7 @@ class _TrainingTab extends StatelessWidget {
     required this.currentWeek,
     required this.lastTrainingWeek,
     required this.lastTrainingAttribute,
+    required this.trainingsCompletedThisWeek,
     required this.onStartTraining,
   });
 
@@ -505,11 +520,13 @@ class _TrainingTab extends StatelessWidget {
   final int currentWeek;
   final int? lastTrainingWeek;
   final String? lastTrainingAttribute;
+  final int trainingsCompletedThisWeek;
   final ValueChanged<TrainingAttribute> onStartTraining;
 
   @override
   Widget build(BuildContext context) {
-    final trainedThisWeek = lastTrainingWeek == currentWeek;
+    final remainingTrainings = (2 - trainingsCompletedThisWeek).clamp(0, 2);
+    final trainedThisWeek = remainingTrainings == 0;
     final previousWeekAttribute = lastTrainingWeek == currentWeek - 1
         ? lastTrainingAttribute
         : null;
@@ -521,10 +538,10 @@ class _TrainingTab extends StatelessWidget {
           _StatusBanner(
             icon: Icons.bolt_rounded,
             title: 'ANTRENMAN HAKKI',
-            value: trainedThisWeek ? '0 / 1' : '1 / 1',
+            value: '$remainingTrainings / 2',
             subtitle: trainedThisWeek
-                ? 'Bu haftaki antrenmanını tamamladın'
-                : 'Bu hafta bir antrenman yapabilirsin',
+                ? 'Bu haftaki iki antrenmanını tamamladın'
+                : 'Bu hafta $remainingTrainings antrenman daha yapabilirsin',
             trailing: _OverallProgressIndicator(
               progress: profile.overallProgress,
             ),

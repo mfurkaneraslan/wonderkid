@@ -15,6 +15,7 @@ class SavedCareer {
     this.currentWeek = 1,
     this.lastTrainingWeek,
     this.lastTrainingAttribute,
+    this.trainingsCompletedThisWeek = 0,
     this.shopState = const CareerShopState(),
     this.matchResults = const <CareerLeagueMatchResult>[],
   });
@@ -24,6 +25,7 @@ class SavedCareer {
   final int currentWeek;
   final int? lastTrainingWeek;
   final String? lastTrainingAttribute;
+  final int trainingsCompletedThisWeek;
   final CareerShopState shopState;
   final List<CareerLeagueMatchResult> matchResults;
 }
@@ -37,6 +39,7 @@ class CareerSaveRepository {
     int currentWeek = 1,
     int? lastTrainingWeek,
     String? lastTrainingAttribute,
+    int trainingsCompletedThisWeek = 0,
     CareerShopState? shopState,
     List<CareerLeagueMatchResult> matchResults = const [],
   }) async {
@@ -51,6 +54,7 @@ class CareerSaveRepository {
           'currentWeek': currentWeek,
           'lastTrainingWeek': lastTrainingWeek,
           'lastTrainingAttribute': lastTrainingAttribute,
+          'trainingsCompletedThisWeek': trainingsCompletedThisWeek,
         },
         'shop': (shopState ?? CareerShopState.initial(offer.weeklySalaryEuro))
             .toJson(),
@@ -124,12 +128,19 @@ class CareerSaveRepository {
           )
           .toList(growable: false);
 
+      final currentWeek = progressJson?['currentWeek'] as int? ?? 1;
+      final lastTrainingWeek = progressJson?['lastTrainingWeek'] as int?;
+      final trainingsCompletedThisWeek =
+          progressJson?['trainingsCompletedThisWeek'] as int? ??
+          (lastTrainingWeek == currentWeek ? 1 : 0);
+
       return SavedCareer(
         profile: profile,
-        currentWeek: progressJson?['currentWeek'] as int? ?? 1,
-        lastTrainingWeek: progressJson?['lastTrainingWeek'] as int?,
+        currentWeek: currentWeek,
+        lastTrainingWeek: lastTrainingWeek,
         lastTrainingAttribute:
             progressJson?['lastTrainingAttribute'] as String?,
+        trainingsCompletedThisWeek: trainingsCompletedThisWeek.clamp(0, 2),
         shopState: shopState,
         matchResults: matchResults,
         offer: offer,

@@ -53,6 +53,63 @@ Future<void> _startTraining(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('leaving an active training warns and consumes the attempt', (
+    tester,
+  ) async {
+    TrainingResult? returnedResult;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              key: const Key('openTraining'),
+              onPressed: () async {
+                returnedResult = await Navigator.of(context)
+                    .push<TrainingResult>(
+                      MaterialPageRoute(
+                        builder: (_) => const TrainingGameScreen(
+                          attribute: TrainingAttribute.pace,
+                        ),
+                      ),
+                    );
+              },
+              child: const Text('OPEN'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('openTraining')));
+    await tester.pumpAndSettle();
+    await _startTraining(tester);
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    expect(find.byKey(const Key('leaveTrainingDialog')), findsOneWidget);
+    expect(
+      find.text(
+        'Geri dönersen bu antrenman hakkını kaybedeceksin.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('continueTrainingButton')));
+    await tester.pump();
+    expect(find.byKey(const Key('leaveTrainingDialog')), findsNothing);
+    expect(find.byKey(const Key('trainingGameScreen')), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('leaveTrainingButton')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(const Key('openTraining')), findsOneWidget);
+    expect(returnedResult?.wasAbandoned, isTrue);
+    expect(returnedResult?.isSuccessful, isFalse);
+  });
+
   testWidgets('every attribute opens its own training game', (tester) async {
     for (final attribute in TrainingAttribute.values) {
       await tester.pumpWidget(

@@ -32,6 +32,7 @@ class TrainingResult {
     required this.grade,
     required this.isSuccessful,
     required this.statIncrease,
+    this.wasAbandoned = false,
   });
 
   final TrainingAttribute attribute;
@@ -39,6 +40,7 @@ class TrainingResult {
   final String grade;
   final bool isSuccessful;
   final double statIncrease;
+  final bool wasAbandoned;
 }
 
 class TrainingGameScreen extends StatefulWidget {
@@ -85,6 +87,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   int? _countdownValue;
   bool _lifeLossPaused = false;
   int _lifeLossSequence = 0;
+  bool _exitPromptOpen = false;
+  bool _allowPop = false;
   bool? _lastSuccess;
   final List<_PaceTarget> _paceTargets = [];
   double _shotFieldWidth = 0;
@@ -130,6 +134,11 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
 
   double get _statDifficultyMultiplier => 1 + (_statDifficultyTier * 0.10);
 
+  bool get _gamePaused => _lifeLossPaused || _exitPromptOpen;
+
+  bool get _trainingInProgress =>
+      !_finished && (_hasStarted || _countdownValue != null);
+
   @override
   void initState() {
     super.initState();
@@ -151,6 +160,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
         timer.cancel();
         return;
       }
+      if (_exitPromptOpen) return;
       if (_countdownValue! > 1) {
         setState(() => _countdownValue = _countdownValue! - 1);
         return;
@@ -178,7 +188,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _timer?.cancel();
     if (widget.attribute == TrainingAttribute.passing) return;
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted || _finished || _lifeLossPaused) return;
+      if (!mounted || _finished || _gamePaused) return;
       if (_secondsLeft <= 1) {
         setState(() => _secondsLeft = 0);
         _finish();
@@ -221,7 +231,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
         timer.cancel();
         return;
       }
-      if (_lifeLossPaused) return;
+      if (_gamePaused) return;
       if (_passingRevealStep >= _passingPattern.length) {
         timer.cancel();
         setState(() {
@@ -236,10 +246,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   void _recordPassingPoint(Offset position, Size size) {
-    if (_finished ||
-        _lifeLossPaused ||
-        _passingLocked ||
-        _passingShowingPattern) {
+    if (_finished || _gamePaused || _passingLocked || _passingShowingPattern) {
       return;
     }
     final node = _passingNodeAt(position, size);
@@ -282,10 +289,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   void _submitPassingPattern() {
-    if (_finished ||
-        _lifeLossPaused ||
-        _passingLocked ||
-        _passingInput.isEmpty) {
+    if (_finished || _gamePaused || _passingLocked || _passingInput.isEmpty) {
       return;
     }
     final success =
@@ -352,7 +356,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void _updatePhysicalBalance() {
     if (!mounted ||
         _finished ||
-        _lifeLossPaused ||
+        _gamePaused ||
         widget.attribute != TrainingAttribute.physical) {
       return;
     }
@@ -405,7 +409,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
 
   void _setPhysicalControl(int direction, bool pressed) {
     if (_finished ||
-        _lifeLossPaused ||
+        _gamePaused ||
         widget.attribute != TrainingAttribute.physical) {
       return;
     }
@@ -480,7 +484,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   void _updatePaceTargets() {
-    if (!mounted || _finished || _lifeLossPaused) return;
+    if (!mounted || _finished || _gamePaused) return;
     var targetsToSpawn = 0;
     var lostLife = false;
     setState(() {
@@ -512,7 +516,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   void _answerPace(int selectedTarget) {
-    if (_finished || _lifeLossPaused) return;
+    if (_finished || _gamePaused) return;
     var success = false;
     setState(() {
       final targetIndex = _paceTargets.indexWhere(
@@ -556,7 +560,11 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     _shootingTargetTimer = Timer(
       Duration(milliseconds: targetMilliseconds),
       () {
-        if (!mounted || _finished || !_shotTargetVisible || _shotAnimating) {
+        if (!mounted ||
+            _finished ||
+            _exitPromptOpen ||
+            !_shotTargetVisible ||
+            _shotAnimating) {
           return;
         }
         setState(() {
@@ -577,7 +585,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   );
 
   void _beginShot(DragStartDetails details) {
-    if (_finished || _lifeLossPaused || _shotAnimating || !_shotTargetVisible) {
+    if (_finished || _gamePaused || _shotAnimating || !_shotTargetVisible) {
       return;
     }
     _shotStartedFromBall =
@@ -586,10 +594,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   void _updateShot(DragUpdateDetails details) {
-    if (!_shotStartedFromBall ||
-        _finished ||
-        _lifeLossPaused ||
-        _shotAnimating) {
+    if (!_shotStartedFromBall || _finished || _gamePaused || _shotAnimating) {
       return;
     }
     _shotDragEnd = details.localPosition;
@@ -597,7 +602,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
 
   void _releaseShot(DragEndDetails details) {
     if (_finished ||
-        _lifeLossPaused ||
+        _gamePaused ||
         _shotAnimating ||
         !_shotTargetVisible ||
         !_shotStartedFromBall ||
@@ -635,7 +640,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   void _completeShot() {
-    if (!mounted || _finished || !_shotAnimating) return;
+    if (!mounted || _finished || _gamePaused || !_shotAnimating) return;
     final success = _shotHitTarget == true;
     setState(() => _shotAnimating = false);
     if (success) {
@@ -697,7 +702,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   }
 
   void _updateDribblePhysics() {
-    if (!mounted || _finished || _lifeLossPaused) return;
+    if (!mounted || _finished || _gamePaused) return;
     final now = DateTime.now();
     final previous = _lastDribbleTick ?? now;
     _lastDribbleTick = now;
@@ -819,7 +824,7 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   void _updateDefendingCatch() {
     if (!mounted ||
         _finished ||
-        _lifeLossPaused ||
+        _gamePaused ||
         widget.attribute != TrainingAttribute.defending) {
       return;
     }
@@ -931,6 +936,98 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
     });
   }
 
+  Future<void> _handleBack(bool didPop, TrainingResult? result) async {
+    if (didPop || _allowPop || _exitPromptOpen) return;
+    if (_finished) {
+      _exitTraining(_result);
+      return;
+    }
+    if (!_trainingInProgress) {
+      _exitTraining(null);
+      return;
+    }
+
+    final shotWasAnimating = _shotAnimating && _shotController.isAnimating;
+    setState(() => _exitPromptOpen = true);
+    if (shotWasAnimating) _shotController.stop();
+    final shouldLeave = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        key: const Key('leaveTrainingDialog'),
+        backgroundColor: const Color(0xFF102A1D),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: const BorderSide(color: Color(0x33C8FF4D)),
+        ),
+        icon: const Icon(
+          Icons.warning_amber_rounded,
+          color: Color(0xFFFFC46B),
+          size: 34,
+        ),
+        title: const Text(
+          'ANTRENMANI BIRAK?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+        ),
+        content: const Text(
+          'Geri dönersen bu antrenman hakkını kaybedeceksin.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white70, fontSize: 13),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            key: const Key('continueTrainingButton'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('DEVAM ET'),
+          ),
+          FilledButton(
+            key: const Key('leaveTrainingButton'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFFFC46B),
+              foregroundColor: const Color(0xFF241504),
+            ),
+            child: const Text('ANTRENMANI BIRAK'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (shouldLeave == true) {
+      _exitTraining(
+        TrainingResult(
+          attribute: widget.attribute,
+          score: _score,
+          grade: 'D',
+          isSuccessful: false,
+          statIncrease: 0,
+          wasAbandoned: true,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _exitPromptOpen = false);
+    _lastDribbleTick = DateTime.now();
+    _lastDefendingTick = DateTime.now();
+    if (shotWasAnimating) {
+      _shotController.forward();
+    } else if (widget.attribute == TrainingAttribute.shooting &&
+        _shotTargetVisible) {
+      _startShootingTarget();
+    }
+  }
+
+  void _exitTraining(TrainingResult? result) {
+    if (!mounted) return;
+    setState(() => _allowPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop(result);
+    });
+  }
+
   void _finish() {
     if (_finished) return;
     _timer?.cancel();
@@ -957,6 +1054,8 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
       _hasStarted = false;
       _countdownValue = null;
       _lifeLossPaused = false;
+      _exitPromptOpen = false;
+      _allowPop = false;
       _lastSuccess = null;
       _shotAnimating = false;
       _shotHitTarget = null;
@@ -1030,51 +1129,59 @@ class _TrainingGameScreenState extends State<TrainingGameScreen>
   @override
   Widget build(BuildContext context) {
     final info = _trainingInfo(widget.attribute);
-    return Scaffold(
-      key: const Key('trainingGameScreen'),
-      backgroundColor: const Color(0xFF071A12),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          info.title.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.2,
+    return PopScope<TrainingResult>(
+      canPop: _allowPop,
+      onPopInvokedWithResult: _handleBack,
+      child: Scaffold(
+        key: const Key('trainingGameScreen'),
+        backgroundColor: const Color(0xFF071A12),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          title: Text(
+            info.title.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+            ),
           ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        top: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
-              child: _finished
-                  ? _ResultView(result: _result, onRetry: _restart)
-                  : !_hasStarted
-                  ? _TrainingStartView(
-                      info: info,
-                      countdownValue: _countdownValue,
-                      onStart: _beginCountdown,
-                    )
-                  : Stack(
-                      children: [
-                        _playView(info),
-                        if (_lifeLossPaused)
-                          Positioned.fill(
-                            child: _LifeLostOverlay(
-                              key: ValueKey(
-                                'lifeLossOverlay$_lifeLossSequence',
+        body: SafeArea(
+          top: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
+                child: _finished
+                    ? _ResultView(
+                        result: _result,
+                        onRetry: _restart,
+                        onFinish: () => _exitTraining(_result),
+                      )
+                    : !_hasStarted
+                    ? _TrainingStartView(
+                        info: info,
+                        countdownValue: _countdownValue,
+                        onStart: _beginCountdown,
+                      )
+                    : Stack(
+                        children: [
+                          _playView(info),
+                          if (_lifeLossPaused)
+                            Positioned.fill(
+                              child: _LifeLostOverlay(
+                                key: ValueKey(
+                                  'lifeLossOverlay$_lifeLossSequence',
+                                ),
+                                livesLeft: _lives,
                               ),
-                              livesLeft: _lives,
                             ),
-                          ),
-                      ],
-                    ),
+                        ],
+                      ),
+              ),
             ),
           ),
         ),
@@ -2464,10 +2571,15 @@ class _DribbleTrackPainter extends CustomPainter {
 }
 
 class _ResultView extends StatelessWidget {
-  const _ResultView({required this.result, required this.onRetry});
+  const _ResultView({
+    required this.result,
+    required this.onRetry,
+    required this.onFinish,
+  });
 
   final TrainingResult result;
   final VoidCallback onRetry;
+  final VoidCallback onFinish;
 
   @override
   Widget build(BuildContext context) {
@@ -2528,7 +2640,7 @@ class _ResultView extends StatelessWidget {
           height: 56,
           child: FilledButton(
             key: const Key('finishTrainingButton'),
-            onPressed: () => Navigator.of(context).pop(result),
+            onPressed: onFinish,
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFFC8FF4D),
               foregroundColor: const Color(0xFF092115),
