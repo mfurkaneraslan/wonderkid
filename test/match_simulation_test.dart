@@ -5,7 +5,26 @@ import 'package:wonderkid/career/fixture_generator.dart';
 import 'package:wonderkid/career/offer_generator.dart';
 import 'package:wonderkid/data/football_repository.dart';
 import 'package:wonderkid/match/match_simulation.dart';
+import 'package:wonderkid/match/match_audio_controller.dart';
 import 'package:wonderkid/match/match_simulation_screen.dart';
+
+class _FakeMatchAudioController implements MatchAudioController {
+  int starts = 0;
+  int goals = 0;
+  int finishes = 0;
+
+  @override
+  Future<void> startMatch() async => starts++;
+
+  @override
+  Future<void> playGoal() async => goals++;
+
+  @override
+  Future<void> finishMatch() async => finishes++;
+
+  @override
+  Future<void> dispose() async {}
+}
 
 void main() {
   test(
@@ -122,6 +141,7 @@ void main() {
   testWidgets('match screen shows squad status and starts at zero', (
     tester,
   ) async {
+    final audio = _FakeMatchAudioController();
     final profile = CareerProfile.create(
       name: 'Furkan',
       nationality: 'Türkiye',
@@ -178,6 +198,7 @@ void main() {
           profile: profile,
           leagueName: 'Süper Lig',
           simulation: simulation,
+          audioController: audio,
         ),
       ),
     );
@@ -192,6 +213,8 @@ void main() {
 
     await tester.tap(find.byKey(const Key('matchPrimaryButton')));
     await tester.pump(const Duration(milliseconds: 280));
+
+    expect(audio.starts, 1);
 
     expect(find.byKey(const Key('substitutionBanner')), findsOneWidget);
     expect(find.text('OYUNA GİRDİN!'), findsOneWidget);
@@ -215,5 +238,7 @@ void main() {
     expect(find.text('İSABETLİ ŞUT'), findsOneWidget);
     expect(find.text('TOP KAYBI'), findsOneWidget);
     expect(find.byKey(const Key('continueAfterMatchButton')), findsOneWidget);
+    expect(audio.goals, 1);
+    expect(audio.finishes, 1);
   });
 }

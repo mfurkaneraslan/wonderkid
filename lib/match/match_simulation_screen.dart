@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../career/career_profile.dart';
+import 'match_audio_controller.dart';
 import 'match_simulation.dart';
 
 class MatchSimulationScreen extends StatefulWidget {
@@ -11,11 +12,13 @@ class MatchSimulationScreen extends StatefulWidget {
     required this.profile,
     required this.leagueName,
     required this.simulation,
+    this.audioController,
   });
 
   final CareerProfile profile;
   final String leagueName;
   final CareerMatchSimulation simulation;
+  final MatchAudioController? audioController;
 
   @override
   State<MatchSimulationScreen> createState() => _MatchSimulationScreenState();
@@ -30,6 +33,13 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
   bool _finished = false;
   bool _showSubstitutionBanner = false;
   CareerMatchEvent? _goalBanner;
+  late final MatchAudioController _audioController;
+
+  @override
+  void initState() {
+    super.initState();
+    _audioController = widget.audioController ?? AssetMatchAudioController();
+  }
 
   List<CareerMatchEvent> get _visibleEvents => widget.simulation.events
       .where((event) => event.minute <= _minute)
@@ -43,6 +53,7 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
   void _startMatch() {
     if (_started) return;
     setState(() => _started = true);
+    unawaited(_audioController.startMatch());
     _scheduleTick(_normalTickDuration(1));
   }
 
@@ -71,6 +82,7 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
         });
       }
       if (goal != null) {
+        unawaited(_audioController.playGoal());
         _goalTimer?.cancel();
         _goalTimer = Timer(const Duration(milliseconds: 850), () {
           if (mounted) setState(() => _goalBanner = null);
@@ -108,6 +120,7 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
       _finished = true;
       _goalBanner = null;
     });
+    unawaited(_audioController.finishMatch());
   }
 
   @override
@@ -115,6 +128,7 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
     _timer?.cancel();
     _goalTimer?.cancel();
     _substitutionTimer?.cancel();
+    unawaited(_audioController.dispose());
     super.dispose();
   }
 
