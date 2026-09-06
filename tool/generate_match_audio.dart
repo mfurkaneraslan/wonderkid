@@ -6,7 +6,6 @@ const _sampleRate = 22050;
 
 void main() {
   final output = Directory('assets/audio')..createSync(recursive: true);
-  _writeWav('${output.path}/kickoff_whistle.wav', _whistle([0.08], 1.25));
   _writeWav(
     '${output.path}/fulltime_whistle.wav',
     _whistle([0.05, 0.92, 1.82], 3.35, finalLong: true),
