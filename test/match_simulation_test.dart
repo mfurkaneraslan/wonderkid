@@ -121,6 +121,12 @@ void main() {
         first.events.where((event) => event.isGoal).length,
         first.homeGoals + first.awayGoals,
       );
+      expect(
+        first.events
+            .where((event) => event.isGoal)
+            .every((event) => event.assist != null && event.assist!.isNotEmpty),
+        isTrue,
+      );
       expect(first.playerShotsOnTarget, lessThanOrEqualTo(first.playerShots));
       expect(first.playerTurnovers, greaterThanOrEqualTo(0));
       final actions = first.events.where((event) => !event.isGoal);
@@ -178,7 +184,12 @@ void main() {
       homeGoals: 1,
       awayGoals: 0,
       events: const [
-        CareerMatchEvent(minute: 24, isHomeGoal: true, scorer: 'Furkan'),
+        CareerMatchEvent(
+          minute: 24,
+          isHomeGoal: true,
+          scorer: 'Furkan',
+          assist: 'Piatek',
+        ),
         CareerMatchEvent.action(
           minute: 4,
           type: CareerMatchEventType.pass,
@@ -231,6 +242,11 @@ void main() {
       find.text('Furkan ortasını açtı, Piatek vurdu — üstten dışarı!'),
       findsOneWidget,
     );
+
+    for (var tick = 0; tick < 60; tick++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('GOL • Furkan  •  Asist: Piatek'), findsOneWidget);
 
     for (var tick = 0; tick < 220; tick++) {
       await tester.pump(const Duration(milliseconds: 100));

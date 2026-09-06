@@ -142,16 +142,20 @@ class CareerMatchEngine {
                 fallback: home ? homeClub.name : awayClub.name,
               );
 
-        String? assist;
-        if (random.nextDouble() < 0.68) {
-          final userAssists =
-              userOnPitch &&
-              !userScores &&
-              random.nextDouble() < _playerAssistShare(profile.position);
-          assist = userAssists
-              ? profile.name
-              : _pickAssistant(roster, random, scorer: scorer);
-        }
+        final userAssists =
+            userOnPitch &&
+            !userScores &&
+            random.nextDouble() < _playerAssistShare(profile.position);
+        final assist = userAssists
+            ? profile.name
+            : _pickAssistant(
+                roster,
+                random,
+                scorer: scorer,
+                fallback: home
+                    ? '${homeClub.name} takım arkadaşı'
+                    : '${awayClub.name} takım arkadaşı',
+              );
         events.add(
           CareerMatchEvent(
             minute: minute,
@@ -355,15 +359,16 @@ class CareerMatchEngine {
         : source[random.nextInt(source.length)].shortName;
   }
 
-  static String? _pickAssistant(
+  static String _pickAssistant(
     List<CareerPlayer> roster,
     Random random, {
     required String scorer,
+    required String fallback,
   }) {
     final candidates = roster
         .where((player) => player.shortName != scorer)
         .toList(growable: false);
-    if (candidates.isEmpty) return null;
+    if (candidates.isEmpty) return fallback;
     return candidates[random.nextInt(candidates.length)].shortName;
   }
 
