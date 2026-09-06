@@ -23,7 +23,7 @@ class AssetMatchAudioController implements MatchAudioController {
       _safely(() async {
         await _ambiencePlayer.setReleaseMode(ReleaseMode.loop);
         await _ambiencePlayer.setVolume(0.22);
-        await _ambiencePlayer.play(AssetSource('audio/stadium_ambience.wav'));
+        await _ambiencePlayer.play(AssetSource('audio/stadium_ambience.mp3'));
       }),
       _safely(() async {
         await _whistlePlayer.setVolume(0.82);

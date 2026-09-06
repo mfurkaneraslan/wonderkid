@@ -10,7 +10,6 @@ void main() {
     '${output.path}/fulltime_whistle.wav',
     _whistle([0.05, 0.92, 1.82], 3.35, finalLong: true),
   );
-  _writeWav('${output.path}/stadium_ambience.wav', _stadiumAmbience(10));
   _writeWav('${output.path}/goal_cheer.wav', _goalCheer(4.2));
 }
 
@@ -36,24 +35,6 @@ List<double> _whistle(
       samples[index] += tone * envelope;
     }
   }
-  return samples;
-}
-
-List<double> _stadiumAmbience(double duration) {
-  final random = Random(1907);
-  final samples = List<double>.filled((duration * _sampleRate).round(), 0);
-  var smoothNoise = 0.0;
-  for (var index = 0; index < samples.length; index++) {
-    final time = index / _sampleRate;
-    smoothNoise = smoothNoise * 0.965 + (random.nextDouble() * 2 - 1) * 0.035;
-    final murmur =
-        sin(2 * pi * 83 * time) * 0.045 +
-        sin(2 * pi * 117 * time + 1.7) * 0.035 +
-        sin(2 * pi * 151 * time + 0.4) * 0.024;
-    final wave = 0.75 + sin(2 * pi * 0.18 * time) * 0.16;
-    samples[index] = (smoothNoise * 0.34 + murmur) * wave;
-  }
-  _crossfadeLoop(samples, 0.55);
   return samples;
 }
 
@@ -88,18 +69,6 @@ List<double> _goalCheer(double duration) {
         );
   }
   return samples;
-}
-
-void _crossfadeLoop(List<double> samples, double seconds) {
-  final length = (seconds * _sampleRate).round();
-  final start = List<double>.from(samples.take(length));
-  for (var index = 0; index < length; index++) {
-    final mix = index / (length - 1);
-    final tailIndex = samples.length - length + index;
-    final blended = samples[tailIndex] * (1 - mix) + start[index] * mix;
-    samples[tailIndex] = blended;
-    samples[index] = blended;
-  }
 }
 
 void _writeWav(String path, List<double> samples) {
