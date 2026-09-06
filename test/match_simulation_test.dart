@@ -9,18 +9,22 @@ import 'package:wonderkid/match/match_audio_controller.dart';
 import 'package:wonderkid/match/match_simulation_screen.dart';
 
 class _FakeMatchAudioController implements MatchAudioController {
-  int starts = 0;
+  int entrances = 0;
+  int kickoffs = 0;
   int goals = 0;
   int finishes = 0;
 
   @override
-  Future<void> startMatch() async => starts++;
+  Future<void> enterMatchDay() async => entrances++;
+
+  @override
+  Future<void> playKickoff() async => kickoffs++;
 
   @override
   Future<void> playGoal() async => goals++;
 
   @override
-  Future<void> finishMatch() async => finishes++;
+  Future<void> playFulltime() async => finishes++;
 
   @override
   Future<void> dispose() async {}
@@ -210,11 +214,13 @@ void main() {
     expect(find.textContaining('Maça yedek başlayacaksın'), findsOneWidget);
     expect(find.text('0  -  0'), findsOneWidget);
     expect(find.text('MAÇI BAŞLAT'), findsOneWidget);
+    expect(audio.entrances, 1);
+    expect(audio.kickoffs, 0);
 
     await tester.tap(find.byKey(const Key('matchPrimaryButton')));
     await tester.pump(const Duration(milliseconds: 280));
 
-    expect(audio.starts, 1);
+    expect(audio.kickoffs, 1);
 
     expect(find.byKey(const Key('substitutionBanner')), findsOneWidget);
     expect(find.text('OYUNA GİRDİN!'), findsOneWidget);

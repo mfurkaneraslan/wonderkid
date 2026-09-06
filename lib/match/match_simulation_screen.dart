@@ -39,6 +39,7 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
   void initState() {
     super.initState();
     _audioController = widget.audioController ?? AssetMatchAudioController();
+    unawaited(_audioController.enterMatchDay());
   }
 
   List<CareerMatchEvent> get _visibleEvents => widget.simulation.events
@@ -50,10 +51,11 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
   int get _awayGoals =>
       _visibleEvents.where((event) => event.isGoal && !event.isHomeGoal).length;
 
-  void _startMatch() {
+  Future<void> _startMatch() async {
     if (_started) return;
     setState(() => _started = true);
-    unawaited(_audioController.startMatch());
+    await _audioController.playKickoff();
+    if (!mounted || _finished) return;
     _scheduleTick(_normalTickDuration(1));
   }
 
@@ -84,7 +86,7 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
       if (goal != null) {
         unawaited(_audioController.playGoal());
         _goalTimer?.cancel();
-        _goalTimer = Timer(const Duration(milliseconds: 850), () {
+        _goalTimer = Timer(const Duration(milliseconds: 1850), () {
           if (mounted) setState(() => _goalBanner = null);
         });
       }
@@ -93,7 +95,7 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
       } else {
         _scheduleTick(
           goal != null
-              ? const Duration(milliseconds: 1200)
+              ? const Duration(milliseconds: 2200)
               : playerAction != null
               ? const Duration(milliseconds: 650)
               : _normalTickDuration(_minute + 1),
@@ -120,7 +122,7 @@ class _MatchSimulationScreenState extends State<MatchSimulationScreen> {
       _finished = true;
       _goalBanner = null;
     });
-    unawaited(_audioController.finishMatch());
+    unawaited(_audioController.playFulltime());
   }
 
   @override
