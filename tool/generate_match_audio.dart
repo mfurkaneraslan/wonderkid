@@ -6,36 +6,7 @@ const _sampleRate = 22050;
 
 void main() {
   final output = Directory('assets/audio')..createSync(recursive: true);
-  _writeWav(
-    '${output.path}/fulltime_whistle.wav',
-    _whistle([0.05, 0.92, 1.82], 3.35, finalLong: true),
-  );
   _writeWav('${output.path}/goal_cheer.wav', _goalCheer(4.2));
-}
-
-List<double> _whistle(
-  List<double> starts,
-  double duration, {
-  bool finalLong = false,
-}) {
-  final samples = List<double>.filled((duration * _sampleRate).round(), 0);
-  for (var burst = 0; burst < starts.length; burst++) {
-    final start = starts[burst];
-    final length = finalLong && burst == starts.length - 1 ? 1.18 : 0.62;
-    for (var index = 0; index < samples.length; index++) {
-      final time = index / _sampleRate - start;
-      if (time < 0 || time > length) continue;
-      final attack = min(1.0, time / 0.025);
-      final release = min(1.0, (length - time) / 0.09);
-      final envelope = attack * release;
-      final vibrato = sin(2 * pi * 6.2 * time) * 55;
-      final tone =
-          sin(2 * pi * (2650 + vibrato) * time) * 0.58 +
-          sin(2 * pi * (3180 + vibrato) * time) * 0.24;
-      samples[index] += tone * envelope;
-    }
-  }
-  return samples;
 }
 
 List<double> _goalCheer(double duration) {
